@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>QUẢN LÝ API THẬT</title>
+  <title>Quản lý Hạn mức API</title>
   
   <meta name="theme-color" content="#090d16" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -39,36 +39,38 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo } = React;
 
+    const DEFAULT_PROJECTS = [
+      { id: 1, name: 'Trợ lý Bài giảng Lớp 4', keyMask: 'AIzaSyD9x8...7kL2', model: 'Gemini 2.0 Flash', spent: 14.50, limit: 30, requests: 19400, active: true },
+      { id: 2, name: 'Chấm bài & Nhận xét Tự động', keyMask: 'AIzaSyB4m1...9vN3', model: 'Gemini 1.5 Pro', spent: 18.00, limit: 40, requests: 6250, active: true },
+      { id: 3, name: 'Tạo Video Nhân vật Tiếng Việt', keyMask: 'AIzaSyK7p2...3cQ5', model: 'Gemini 1.5 Flash', spent: 5.50, limit: 20, requests: 8900, active: true },
+    ];
+
     function App() {
       const [darkMode, setDarkMode] = useState(true);
       const [activeTab, setActiveTab] = useState('dashboard');
       const [exchangeRate] = useState(25450);
 
-      // Ví trả trước
+      // Quản lý tổng ngân sách ví trả trước
       const [totalDeposited, setTotalDeposited] = useState(() => {
-        const saved = localStorage.getItem('qlapi_real_deposited');
-        return saved !== null ? Number(saved) : 20.00;
+        const saved = localStorage.getItem('qlapi_tracker_deposited');
+        return saved !== null ? Number(saved) : 100.00;
       });
 
-      // Danh sách API Keys Thật
-      const [keys, setKeys] = useState(() => {
-        const saved = localStorage.getItem('qlapi_real_keys');
-        return saved ? JSON.parse(saved) : [
-          { id: 1, name: 'Dự án chính (Gemini Flash)', key: '', model: 'gemini-2.0-flash', spent: 0, limit: 10, requests: 0, active: true }
-        ];
+      // Danh sách dự án & hạn mức
+      const [projects, setProjects] = useState(() => {
+        const saved = localStorage.getItem('qlapi_tracker_projects');
+        return saved ? JSON.parse(saved) : DEFAULT_PROJECTS;
       });
 
-      // Trạng thái cho tab Test Gọi AI Thật
-      const [testKeyId, setTestKeyId] = useState(1);
-      const [testPrompt, setTestPrompt] = useState('Xin chào, hãy giới thiệu ngắn gọn về bạn.');
-      const [testResult, setTestResult] = useState('');
-      const [isCallingAPI, setIsCallingAPI] = useState(false);
-
-      const [showKeyModal, setShowKeyModal] = useState(false);
-      const [newName, setNewName] = useState('');
-      const [newKeyValue, setNewKeyValue] = useState('');
-      const [newModel, setNewModel] = useState('gemini-2.0-flash');
-      const [newLimit, setNewLimit] = useState(10);
+      // Modal states
+      const [showModal, setShowModal] = useState(false);
+      const [editProject, setEditProject] = useState(null);
+      const [name, setName] = useState('');
+      const [keyMask, setKeyMask] = useState('');
+      const [model, setModel] = useState('Gemini 2.0 Flash');
+      const [limit, setLimit] = useState(30);
+      const [spent, setSpent] = useState(0);
+      const [requests, setRequests] = useState(0);
       const [toast, setToast] = useState(null);
 
       useEffect(() => {
@@ -76,190 +78,137 @@
       }, [darkMode]);
 
       useEffect(() => {
-        localStorage.setItem('qlapi_real_deposited', totalDeposited.toString());
+        localStorage.setItem('qlapi_tracker_deposited', totalDeposited.toString());
       }, [totalDeposited]);
 
       useEffect(() => {
-        localStorage.setItem('qlapi_real_keys', JSON.stringify(keys));
-      }, [keys]);
+        localStorage.setItem('qlapi_tracker_projects', JSON.stringify(projects));
+      }, [projects]);
 
-      const notify = (msg, type = 'info') => {
-        setToast({ msg, type });
-        setTimeout(() => setToast(null), 3500);
+      const notify = (msg) => {
+        setToast(msg);
+        setTimeout(() => setToast(null), 3000);
       };
 
-      const totalUsed = useMemo(() => keys.reduce((sum, k) => sum + Number(k.spent), 0), [keys]);
+      const totalUsed = useMemo(() => projects.reduce((sum, p) => sum + Number(p.spent), 0), [projects]);
       const remainingBalance = useMemo(() => Math.max(0, Number((totalDeposited - totalUsed).toFixed(2))), [totalDeposited, totalUsed]);
-      const isOutOfMoney = remainingBalance <= 0;
-      const totalRequests = useMemo(() => keys.reduce((sum, k) => sum + Number(k.requests), 0), [keys]);
+      const totalRequests = useMemo(() => projects.reduce((sum, p) => sum + Number(p.requests), 0), [projects]);
 
       const formatVND = (usd) => Math.round(usd * exchangeRate).toLocaleString('vi-VN') + ' ₫';
 
-      // HÀM GỌI API THẬT TỚI GOOGLE GEMINI
-      const handleRealApiCall = async (e) => {
+      const handleSaveProject = (e) => {
         e.preventDefault();
-        if (isOutOfMoney) {
-          notify('Số dư Ví trả trước đã hết ($0.00)! Vui lòng nạp thêm tiền để tiếp tục gọi AI.', 'error');
-          return;
+        if (!name.trim()) return;
+
+        if (editProject) {
+          setProjects(projects.map(p => p.id === editProject.id ? {
+            ...p,
+            name,
+            keyMask: keyMask || p.keyMask,
+            model,
+            limit: Number(limit) || 10,
+            spent: Number(spent) || 0,
+            requests: Number(requests) || 0
+          } : p));
+          notify('Đã cập nhật thông tin dự án!');
+        } else {
+          const newProj = {
+            id: Date.now(),
+            name,
+            keyMask: keyMask || 'AIzaSy...xxxx',
+            model,
+            spent: Number(spent) || 0,
+            limit: Number(limit) || 30,
+            requests: Number(requests) || 0,
+            active: true
+          };
+          setProjects([newProj, ...projects]);
+          notify('Đã thêm dự án mới thành công!');
         }
+        setShowModal(false);
+        setEditProject(null);
+        setName('');
+        setKeyMask('');
+        setSpent(0);
+        setRequests(0);
+      };
 
-        const currentKeyObj = keys.find(k => k.id === Number(testKeyId));
-        if (!currentKeyObj || !currentKeyObj.key.trim()) {
-          notify('API Key này chưa có mã thật! Vui lòng vào mục "Quản lý Keys" dán mã AIzaSy... thật vào.', 'error');
-          return;
-        }
-        if (!currentKeyObj.active) {
-          notify('API Key này đang bị khóa thủ công!', 'error');
-          return;
-        }
-        if (currentKeyObj.spent >= currentKeyObj.limit) {
-          notify('API Key này đã chạm hạn mức riêng!', 'error');
-          return;
-        }
+      const openEditModal = (p) => {
+        setEditProject(p);
+        setName(p.name);
+        setKeyMask(p.keyMask);
+        setModel(p.model);
+        setLimit(p.limit);
+        setSpent(p.spent);
+        setRequests(p.requests);
+        setShowModal(true);
+      };
 
-        setIsCallingAPI(true);
-        setTestResult('Đang kết nối tới máy chủ Google AI Studio...');
+      const toggleActive = (id) => {
+        setProjects(projects.map(p => p.id === id ? { ...p, active: !p.active } : p));
+      };
 
-        try {
-          const modelName = currentKeyObj.model; // VD: gemini-2.0-flash
-          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${currentKeyObj.key.trim()}`;
+      const deleteProject = (id) => {
+        setProjects(projects.filter(p => p.id !== id));
+        notify('Đã xóa dự án.');
+      };
 
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: testPrompt }] }]
-            })
-          });
-
-          const data = await response.json();
-
-          if (!response.ok) {
-            throw new Error(data.error?.message || 'Lỗi xác thực API Key từ Google');
+      const addQuickExpense = (id, amount) => {
+        setProjects(projects.map(p => {
+          if (p.id === id) {
+            const newSpent = Number((p.spent + amount).toFixed(2));
+            return { ...p, spent: newSpent, requests: p.requests + 250 };
           }
-
-          const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Không có phản hồi từ mô hình.';
-          const usage = data.usageMetadata || { promptTokenCount: 150, candidatesTokenCount: 100 };
-          const totalTokens = usage.totalTokenCount || (usage.promptTokenCount + usage.candidatesTokenCount);
-
-          // Tính chi phí thật theo biểu giá Google AI Studio
-          // Gemini 2.0 Flash: ~$0.10 / 1M input tokens, ~$0.40 / 1M output tokens (lấy mức trung bình an toàn)
-          const costPerToken = modelName.includes('pro') ? (1.25 / 1000000) : (0.10 / 1000000);
-          const calculatedCost = Number((totalTokens * costPerToken * 5).toFixed(4)) || 0.002; // Làm tròn và quy đổi đơn vị gọi
-
-          // Trừ tiền vào ví & cập nhật key
-          setKeys(keys.map(k => {
-            if (k.id === currentKeyObj.id) {
-              return {
-                ...k,
-                spent: Number((k.spent + calculatedCost).toFixed(4)),
-                requests: k.requests + 1
-              };
-            }
-            return k;
-          }));
-
-          setTestResult(`🤖 PHẢN HỒI TỪ GEMINI:\n${replyText}\n\n-----------------------------------\n📊 ĐO LƯỜNG TOKEN THẬT TỪ GOOGLE:\n- Input Tokens: ${usage.promptTokenCount || 'N/A'}\n- Output Tokens: ${usage.candidatesTokenCount || 'N/A'}\n- Tổng Token: ${totalTokens}\n- Chi phí thực tế trừ vào ví: $${calculatedCost.toFixed(4)} (${formatVND(calculatedCost)})`);
-          notify(`Gọi AI thành công! Đã trừ $${calculatedCost.toFixed(4)}`, 'success');
-
-        } catch (err) {
-          setTestResult(`❌ LỖI KẾT NỐI: ${err.message}\n\nVui lòng kiểm tra lại tính chính xác của mã API Key thực tế trong mục quản lý!`);
-          notify('Gọi API thất bại, kiểm tra lại Key!', 'error');
-        } finally {
-          setIsCallingAPI(false);
-        }
-      };
-
-      const handleAddKey = (e) => {
-        e.preventDefault();
-        if (!newName.trim() || !newKeyValue.trim()) {
-          notify('Vui lòng nhập tên và mã API Key thật!', 'error');
-          return;
-        }
-        const newEntry = {
-          id: Date.now(),
-          name: newName,
-          key: newKeyValue.trim(),
-          model: newModel,
-          spent: 0,
-          limit: Number(newLimit) || 10,
-          requests: 0,
-          active: true
-        };
-        setKeys([...keys, newEntry]);
-        setNewName('');
-        setNewKeyValue('');
-        setShowKeyModal(false);
-        notify('Đã thêm API Key thật thành công!', 'success');
-      };
-
-      const toggleKey = (id) => {
-        setKeys(keys.map(k => k.id === id ? { ...k, active: !k.active } : k));
-      };
-
-      const deleteKey = (id) => {
-        setKeys(keys.filter(k => k.id !== id));
-        notify('Đã xóa Key.');
+          return p;
+        }));
+        notify(`Đã cập nhật +$${amount} chi phí thực tế.`);
       };
 
       return (
         <div className="min-h-screen pb-24 md:pb-8 flex flex-col md:flex-row">
           {toast && (
-            <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-sm font-semibold text-white transition-all ${
-              toast.type === 'error' ? 'bg-rose-600' : toast.type === 'success' ? 'bg-emerald-600' : 'bg-indigo-600'
-            }`}>
-              <span>{toast.type === 'error' ? '⚠️' : toast.type === 'success' ? '✅' : '🔔'}</span>
-              <span>{toast.msg}</span>
+            <div className="fixed top-4 right-4 z-50 bg-indigo-600 text-white px-4 py-3 rounded-2xl shadow-2xl text-sm font-semibold">
+              {toast}
             </div>
           )}
 
           {/* SIDEBAR */}
-          <aside className="hidden md:flex flex-col w-72 bg-white dark:bg-[#0f1624] border-r border-slate-200/80 dark:border-slate-800/80 p-6 shrink-0">
+          <aside className="hidden md:flex flex-col w-72 bg-white dark:bg-[#0f1624] border-r border-slate-200/80 dark:border-slate-800 p-6 shrink-0">
             <div className="flex items-center gap-3.5 mb-8">
               <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-cyan-500 flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-indigo-500/30">
-                ⚡
+                📊
               </div>
               <div>
-                <h1 className="font-extrabold text-base tracking-tight">QUẢN LÝ API THẬT</h1>
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                  ● Kết nối Live Google API
-                </span>
+                <h1 className="font-extrabold text-base tracking-tight">QUẢN LÝ HẠN MỨC</h1>
+                <span className="text-[11px] text-emerald-500 font-semibold">● Sổ tay Chi phí AI Studio</span>
               </div>
             </div>
 
-            <div className="mb-6 p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-lg">
-              <div className="flex justify-between items-center text-xs text-slate-400">
-                <span>Số dư Ví Trả Trước</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isOutOfMoney ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                  {isOutOfMoney ? 'ĐÃ HẾT' : 'SẴN SÀNG'}
-                </span>
+            <div className="mb-6 p-4 rounded-2xl bg-slate-900 text-white shadow-lg space-y-2">
+              <div className="flex justify-between text-xs text-slate-400">
+                <span>Ngân sách Tổng ví</span>
+                <button onClick={() => {
+                  const val = prompt('Nhập tổng ngân sách ví ($):', totalDeposited);
+                  if (val && !isNaN(val)) setTotalDeposited(Number(val));
+                }} className="text-indigo-400 underline text-[10px]">Sửa</button>
               </div>
-              <p className="text-2xl font-extrabold mt-1">${remainingBalance.toFixed(2)}</p>
-              <div className="mt-3 flex gap-2">
-                <input
-                  type="number" value={totalDeposited} onChange={e => setTotalDeposited(Number(e.target.value) || 0)}
-                  className="w-full px-2.5 py-1.5 rounded-xl bg-slate-800 text-white text-xs font-bold border border-slate-700"
-                  title="Sửa nhanh tổng tiền nạp"
-                />
-              </div>
+              <p className="text-2xl font-extrabold">${totalDeposited.toFixed(2)}</p>
+              <p className="text-xs text-emerald-400">Còn lại: ${remainingBalance.toFixed(2)}</p>
             </div>
 
             <nav className="space-y-1.5 flex-1">
               {[
-                { id: 'dashboard', label: 'Tổng quan ví & Key', icon: '📊' },
-                { id: 'keys', label: 'Quản lý API Keys Thật', icon: '🔑' },
-                { id: 'testai', label: 'Chạy thử AI thật (-Tiền thật)', icon: '🤖' },
+                { id: 'dashboard', label: 'Tổng quan chi phí', icon: '📈' },
+                { id: 'projects', label: 'Quản lý Dự án & Key', icon: '🔑' },
               ].map(item => (
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                    activeTab === item.id
-                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/25'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                    activeTab === item.id ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                   }`}
                 >
-                  <span className="text-base">{item.icon}</span>
+                  <span>{item.icon}</span>
                   <span>{item.label}</span>
                 </button>
               ))}
@@ -268,15 +217,15 @@
                 href="https://aistudio.google.com/app/apikey"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-amber-500 hover:bg-amber-500/10 transition-all border border-amber-500/20 mt-2"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-amber-500 hover:bg-amber-500/10 border border-amber-500/20 mt-4"
               >
-                <span className="text-base">↗</span>
-                <span>Lấy Key từ AI Studio</span>
+                <span>↗</span>
+                <span>Mở Google AI Studio</span>
               </a>
             </nav>
 
-            <div className="mt-auto pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500">Giao diện</span>
+            <div className="mt-auto pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
+              <span className="text-xs text-slate-500">Giao diện</span>
               <button onClick={() => setDarkMode(!darkMode)} className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold">
                 {darkMode ? '🌙 Tối' : '☀️ Sáng'}
               </button>
@@ -285,13 +234,12 @@
 
           {/* NỘI DUNG CHÍNH */}
           <main className="flex-1 max-w-5xl mx-auto w-full p-4 md:p-8 space-y-6">
-            {/* Header Mobile */}
             <div className="flex md:hidden items-center justify-between bg-white dark:bg-[#0f1624] p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold">⚡</div>
+                <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold">📊</div>
                 <div>
-                  <h1 className="font-extrabold text-base">QUẢN LÝ API THẬT</h1>
-                  <p className="text-[11px] text-emerald-500 font-semibold">Ví: ${remainingBalance.toFixed(2)}</p>
+                  <h1 className="font-extrabold text-base">QUẢN LÝ HẠN MỨC</h1>
+                  <p className="text-[11px] text-emerald-500">Ví: ${remainingBalance.toFixed(2)}</p>
                 </div>
               </div>
               <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs">
@@ -299,162 +247,137 @@
               </button>
             </div>
 
-            {/* CẢNH BÁO HẾT TIỀN */}
-            {isOutOfMoney && (
-              <div className="bg-rose-500/10 border-2 border-rose-500/40 rounded-2xl p-4 md:p-5 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <span className="text-2xl">🛑</span>
-                  <div>
-                    <h3 className="font-bold text-rose-500 text-sm md:text-base">Số dư ví trả trước đã cạn ($0.00)!</h3>
-                    <p className="text-xs text-slate-400">Mọi lệnh gọi API thật sẽ bị chặn cho đến khi bạn nạp thêm tiền vào ví ở cột bên trái.</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
             {/* TAB 1: TỔNG QUAN */}
             {activeTab === 'dashboard' && (
               <div className="space-y-6">
-                <div className="rounded-3xl bg-gradient-to-br from-indigo-600 to-slate-900 text-white p-6 md:p-8 shadow-xl">
-                  <div className="flex flex-col md:flex-row justify-between gap-6">
-                    <div>
-                      <span className="px-3 py-1 rounded-full bg-white/15 text-xs font-semibold">🛡️ Trạm Kiểm Soát API Trả Trước Thật</span>
-                      <p className="text-xs uppercase tracking-wider text-indigo-200 mt-3 font-semibold">Số dư khả dụng</p>
-                      <h2 className="text-4xl md:text-5xl font-extrabold mt-1">${remainingBalance.toFixed(2)}</h2>
-                      <p className="text-xs text-indigo-200 mt-1">Quy đổi: {formatVND(remainingBalance)}</p>
-                    </div>
-                    <div className="flex flex-col justify-end gap-2">
-                      <button onClick={() => setActiveTab('testai')} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-5 py-3 rounded-2xl font-extrabold text-sm shadow-lg">
-                        🤖 Chạy Thử AI Thật Ngay →
-                      </button>
-                      <button onClick={() => setShowKeyModal(true)} className="bg-white/20 hover:bg-white/30 text-white px-4 py-2.5 rounded-2xl font-semibold text-xs">
-                        + Thêm API Key Thật Mới
-                      </button>
-                    </div>
+                <div className="rounded-3xl bg-gradient-to-br from-indigo-600 to-slate-900 text-white p-6 md:p-8 shadow-xl flex flex-col md:flex-row justify-between gap-6">
+                  <div>
+                    <span className="px-3 py-1 rounded-full bg-white/15 text-xs font-semibold">💡 Sổ Tay Theo Dõi Ngân Sách AI</span>
+                    <p className="text-xs uppercase tracking-wider text-indigo-200 mt-3 font-semibold">Số dư ngân sách tổng</p>
+                    <h2 className="text-4xl md:text-5xl font-extrabold mt-1">${remainingBalance.toFixed(2)}</h2>
+                    <p className="text-xs text-indigo-200 mt-1">Tương đương: {formatVND(remainingBalance)}</p>
+                  </div>
+                  <div className="flex flex-col justify-end gap-2">
+                    <button onClick={() => {
+                      setEditProject(null);
+                      setName('');
+                      setKeyMask('AIzaSy...');
+                      setSpent(0);
+                      setLimit(30);
+                      setShowModal(true);
+                    }} className="bg-white text-indigo-700 hover:bg-indigo-50 px-5 py-3 rounded-2xl font-extrabold text-sm shadow-lg">
+                      + Thêm Dự Án / Key Mới
+                    </button>
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-4 py-2.5 rounded-xl font-extrabold text-xs text-center shadow"
+                    >
+                      ↗ Lấy Key từ Google AI Studio
+                    </a>
                   </div>
                 </div>
 
-                {/* THỐNG KÊ */}
+                {/* 3 THỐNG KÊ */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="bg-white dark:bg-[#0f1624] p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
                     <span className="text-xs text-slate-500">Tổng Ngân Sách Nạp</span>
                     <p className="text-2xl font-extrabold mt-1">${totalDeposited.toFixed(2)}</p>
                   </div>
                   <div className="bg-white dark:bg-[#0f1624] p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
-                    <span className="text-xs text-slate-500">Chi Phí Đã Dùng Thật</span>
-                    <p className="text-2xl font-extrabold text-amber-500 mt-1">${totalUsed.toFixed(4)}</p>
+                    <span className="text-xs text-slate-500">Tổng Chi Phí Đã Dùng</span>
+                    <p className="text-2xl font-extrabold text-amber-500 mt-1">${totalUsed.toFixed(2)}</p>
                   </div>
                   <div className="bg-white dark:bg-[#0f1624] p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
-                    <span className="text-xs text-slate-500">Tổng Lượt Gọi Google API</span>
+                    <span className="text-xs text-slate-500">Tổng Lượt Requests Ước Tính</span>
                     <p className="text-2xl font-extrabold text-indigo-500 mt-1">{totalRequests.toLocaleString()}</p>
                   </div>
                 </div>
 
-                {/* DANH SÁCH KEYS */}
+                {/* DANH SÁCH DỰ ÁN */}
                 <div className="bg-white dark:bg-[#0f1624] p-5 md:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-4">
-                  <h3 className="font-extrabold text-base">Danh sách API Keys Đã Đăng Ký</h3>
-                  {keys.map(k => (
-                    <div key={k.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm">{k.name}</span>
-                          <span className="text-[11px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-500 font-semibold">{k.model}</span>
+                  <div className="flex justify-between items-center">
+                    <h3 className="font-extrabold text-base">Hạn mức chi tiêu theo từng dự án</h3>
+                    <button onClick={() => setActiveTab('projects')} className="text-xs text-indigo-500 hover:underline font-bold">Quản lý chi tiết →</button>
+                  </div>
+
+                  <div className="space-y-3.5">
+                    {projects.map(p => {
+                      const percent = Math.min(100, Math.round((p.spent / p.limit) * 100));
+                      const isLimitReached = p.spent >= p.limit;
+                      return (
+                        <div key={p.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                          <div className="space-y-1.5 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-sm">{p.name}</span>
+                              <span className="text-[11px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-500 font-semibold">{p.model}</span>
+                              <span className={`text-[11px] px-2 py-0.5 rounded font-bold ${isLimitReached ? 'bg-rose-500/15 text-rose-500' : 'bg-emerald-500/15 text-emerald-500'}`}>
+                                {isLimitReached ? '⚠️ Chạm hạn mức' : '● Đang chạy'}
+                              </span>
+                            </div>
+                            <div className="w-full max-w-md bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                              <div className={`h-full ${isLimitReached ? 'bg-rose-500' : 'bg-indigo-600'}`} style={{ width: `${percent}%` }}></div>
+                            </div>
+                            <div className="flex gap-4 text-xs text-slate-500">
+                              <span>Đã dùng: <strong className="text-slate-700 dark:text-slate-200">${p.spent.toFixed(2)}</strong> ({formatVND(p.spent)})</span>
+                              <span>Hạn mức: <strong>${p.limit}</strong></span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button onClick={() => addQuickExpense(p.id, 2.00)} className="px-3 py-1.5 rounded-xl bg-indigo-600/10 text-indigo-500 text-xs font-bold hover:bg-indigo-600/20">
+                              + Thêm $2 cước
+                            </button>
+                            <button onClick={() => openEditModal(p)} className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-xs font-bold">
+                              Sửa
+                            </button>
+                          </div>
                         </div>
-                        <p className="text-xs font-mono text-slate-400 mt-1">Key: {k.key ? k.key.substring(0, 10) + '...' : '⚠️ Chưa nhập mã AIzaSy...'}</p>
-                      </div>
-                      <div className="flex items-center gap-4 text-xs">
-                        <div>
-                          <span>Đã tiêu: </span>
-                          <strong className="text-amber-500">${k.spent.toFixed(4)}</strong>
-                        </div>
-                        <button onClick={() => toggleKey(k.id)} className={`px-3 py-1.5 rounded-xl font-bold ${k.active ? 'bg-emerald-500/15 text-emerald-500' : 'bg-rose-500/15 text-rose-500'}`}>
-                          {k.active ? 'Đang bật' : 'Đã khóa'}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* TAB 2: QUẢN LÝ KEYS */}
-            {activeTab === 'keys' && (
+            {/* TAB 2: QUẢN LÝ DỰ ÁN */}
+            {activeTab === 'projects' && (
               <div className="space-y-5">
                 <div className="flex justify-between items-center">
                   <div>
-                    <h2 className="text-xl font-extrabold">Cấu hình API Keys Thật</h2>
-                    <p className="text-xs text-slate-500">Dán mã AIzaSy... lấy từ Google AI Studio vào đây để App kết nối thật.</p>
+                    <h2 className="text-xl font-extrabold">Danh sách Dự án & API Keys</h2>
+                    <p className="text-xs text-slate-500">Cập nhật thủ công chi phí lấy từ Google AI Studio vào đây mỗi tuần/tháng.</p>
                   </div>
-                  <button onClick={() => setShowKeyModal(true)} className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold">
-                    + Thêm Key Thật Mới
+                  <button onClick={() => {
+                    setEditProject(null);
+                    setName('');
+                    setKeyMask('AIzaSy...');
+                    setSpent(0);
+                    setLimit(30);
+                    setShowModal(true);
+                  }} className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold">
+                    + Thêm Dự Án Mới
                   </button>
                 </div>
 
                 <div className="space-y-3">
-                  {keys.map(k => (
-                    <div key={k.id} className="bg-white dark:bg-[#0f1624] p-5 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="font-bold text-base">{k.name}</span>
-                        <button onClick={() => deleteKey(k.id)} className="text-rose-500 text-xs font-bold">Xóa</button>
+                  {projects.map(p => (
+                    <div key={p.id} className="bg-white dark:bg-[#0f1624] p-5 rounded-3xl border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-base">{p.name}</span>
+                          <span className="text-xs px-2.5 py-0.5 rounded bg-indigo-500/10 text-indigo-500 font-semibold">{p.model}</span>
+                        </div>
+                        <p className="text-xs font-mono text-slate-400 mt-1">Key: {p.keyMask} • Tổng dùng: <strong className="text-amber-500">${p.spent.toFixed(2)}</strong> / ${p.limit}</p>
                       </div>
-                      <div className="flex gap-2">
-                        <input
-                          type="text" value={k.key} placeholder="Dán mã API Key thật (AIzaSy...) vào đây"
-                          onChange={e => {
-                            const val = e.target.value;
-                            setKeys(keys.map(item => item.id === k.id ? { ...item, key: val } : item));
-                          }}
-                          className="w-full px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-900 font-mono text-xs border border-slate-300 dark:border-slate-700"
-                        />
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => openEditModal(p)} className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">Chỉnh sửa</button>
+                        <button onClick={() => deleteProject(p.id)} className="px-3 py-2 rounded-xl bg-rose-500/10 text-rose-500 text-xs font-bold">Xóa</button>
                       </div>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {/* TAB 3: CHẠY THỬ AI THẬT */}
-            {activeTab === 'testai' && (
-              <div className="bg-white dark:bg-[#0f1624] p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-5">
-                <div>
-                  <h2 className="text-xl font-extrabold">🤖 Trạm Gọi Thử Gemini API Thật</h2>
-                  <p className="text-xs text-slate-500">Gửi câu hỏi trực tiếp đến Google, đo token thật và trừ tiền thật vào ví trả trước.</p>
-                </div>
-
-                <form onSubmit={handleRealApiCall} className="space-y-4">
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1">Chọn API Key để gọi</label>
-                    <select
-                      value={testKeyId} onChange={e => setTestKeyId(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm font-bold border border-slate-300 dark:border-slate-700"
-                    >
-                      {keys.map(k => (
-                        <option key={k.id} value={k.id}>{k.name} ({k.model}) - {k.key ? 'Đã có Key' : '⚠️ Chưa có Key'}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1">Nhập nội dung hỏi Gemini</label>
-                    <textarea
-                      rows="3" value={testPrompt} onChange={e => setTestPrompt(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm border border-slate-300 dark:border-slate-700"
-                    ></textarea>
-                  </div>
-
-                  <button
-                    type="submit" disabled={isCallingAPI}
-                    className="w-full py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-sm shadow-lg shadow-indigo-600/30 disabled:opacity-50"
-                  >
-                    {isCallingAPI ? 'Đang gửi yêu cầu và tính toán Token...' : '🚀 Gửi Request Thật tới Google AI Studio'}
-                  </button>
-                </form>
-
-                {testResult && (
-                  <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-mono whitespace-pre-wrap leading-relaxed">
-                    {testResult}
-                  </div>
-                )}
               </div>
             )}
           </main>
@@ -462,9 +385,8 @@
           {/* MENU MOBILE */}
           <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-[#0f1624]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 flex justify-around py-2 px-1 z-40">
             {[
-              { id: 'dashboard', label: 'Tổng quan', icon: '📊' },
-              { id: 'keys', label: 'Cấu hình Key', icon: '🔑' },
-              { id: 'testai', label: 'Gọi AI Thật', icon: '🤖' },
+              { id: 'dashboard', label: 'Tổng quan', icon: '📈' },
+              { id: 'projects', label: 'Dự án', icon: '🔑' },
             ].map(tab => (
               <button
                 key={tab.id} onClick={() => setActiveTab(tab.id)}
@@ -476,40 +398,57 @@
             ))}
           </nav>
 
-          {/* MODAL THÊM KEY */}
-          {showKeyModal && (
+          {/* MODAL THÊM / SỬA DỰ ÁN */}
+          {showModal && (
             <div className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <form onSubmit={handleAddKey} className="bg-white dark:bg-[#0f1624] w-full max-w-md rounded-3xl p-6 border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xl">
-                <h3 className="font-extrabold text-lg">🔑 Thêm API Key Thật Mới</h3>
+              <form onSubmit={handleSaveProject} className="bg-white dark:bg-[#0f1624] w-full max-w-md rounded-3xl p-6 border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xl">
+                <h3 className="font-extrabold text-lg">{editProject ? '✏️ Chỉnh sửa Dự án' : '➕ Thêm Dự án Mới'}</h3>
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Tên dự án</label>
+                  <label className="text-xs text-slate-400 block mb-1">Tên Dự án / Mục đích *</label>
                   <input
-                    type="text" required placeholder="VD: Ứng dụng Chấm bài"
-                    value={newName} onChange={e => setNewName(e.target.value)}
+                    type="text" required placeholder="VD: App chấm bài tự động"
+                    value={name} onChange={e => setName(e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Mã API Key thật từ Google (AIzaSy...)</label>
+                  <label className="text-xs text-slate-400 block mb-1">Gợi ý mã Key (để phân biệt)</label>
                   <input
-                    type="text" required placeholder="AIzaSy..."
-                    value={newKeyValue} onChange={e => setNewKeyValue(e.target.value)}
+                    type="text" placeholder="AIzaSy...abcd"
+                    value={keyMask} onChange={e => setKeyMask(e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm font-mono"
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Model AI</label>
+                    <select
+                      value={model} onChange={e => setModel(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm font-bold"
+                    >
+                      <option>Gemini 2.0 Flash</option>
+                      <option>Gemini 1.5 Pro</option>
+                      <option>Gemini 1.5 Flash</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Hạn mức tối đa ($)</label>
+                    <input
+                      type="number" value={limit} onChange={e => setLimit(e.target.value)}
+                      className="w-full px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm font-bold"
+                    />
+                  </div>
+                </div>
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Model Gemini</label>
-                  <select
-                    value={newModel} onChange={e => setNewModel(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm font-bold"
-                  >
-                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
-                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                  </select>
+                  <label className="text-xs text-slate-400 block mb-1">Chi phí thực tế đã dùng ($) — Lấy từ Google AI Studio</label>
+                  <input
+                    type="number" step="0.01" value={spent} onChange={e => setSpent(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm font-bold text-amber-500"
+                  />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
-                  <button type="button" onClick={() => setShowKeyModal(false)} className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800">Hủy</button>
-                  <button type="submit" className="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-indigo-600 text-white">Lưu Key</button>
+                  <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800">Hủy</button>
+                  <button type="submit" className="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-indigo-600 text-white">Lưu thông tin</button>
                 </div>
               </form>
             </div>
@@ -518,7 +457,6 @@
       );
     }
 
-    const ReactDOM = window.ReactDOM;
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
