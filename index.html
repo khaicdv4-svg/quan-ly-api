@@ -11,11 +11,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Quản lý API" />
   
-  <!-- Icon hiển thị ngoài màn hình chính -->
-  <link rel="icon" href="./favicon.ico" sizes="any" />
-  <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32x32.png" />
-  <link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
-  <link rel="manifest" href="./manifest.webmanifest" />
+  <!-- Biểu tượng Icon ứng dụng -->
+  <link rel="apple-touch-icon" href="/icon.png">
+  <link rel="icon" type="image/png" href="/icon.png">
+  <link rel="shortcut icon" href="/icon.png">
 
   <!-- Font Inter & Thư viện Tailwind CSS, React -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -55,7 +54,7 @@
     ];
 
     const DEFAULT_HISTORY = [
-      { id: 'NAP-2026-02', date: '20/10/2026 09:15', amount: 30.00, method: 'Chuyển khoản VietQR', status: 'Thành công' },
+      { id: 'NAP-2026-02', date: '20/10/2026 09:15', amount: 30.00, method: 'Chuyển khoản QR Ngân hàng', status: 'Thành công' },
       { id: 'NAP-2026-01', date: '01/10/2026 14:30', amount: 20.00, method: 'Ví MoMo', status: 'Thành công' },
     ];
 
@@ -64,25 +63,21 @@
       const [activeTab, setActiveTab] = useState('dashboard');
       const [exchangeRate] = useState(25450);
 
-      // Tổng tiền trả trước đã nạp vào ví ($ USD)
       const [totalDeposited, setTotalDeposited] = useState(() => {
         const saved = localStorage.getItem('qlapi_prepaid_deposited_v2');
         return saved !== null ? Number(saved) : 50.00;
       });
 
-      // Danh sách API Keys
       const [keys, setKeys] = useState(() => {
         const saved = localStorage.getItem('qlapi_keys_v2');
         return saved ? JSON.parse(saved) : DEFAULT_KEYS;
       });
 
-      // Lịch sử nạp tiền
       const [history, setHistory] = useState(() => {
         const saved = localStorage.getItem('qlapi_history_v2');
         return saved ? JSON.parse(saved) : DEFAULT_HISTORY;
       });
 
-      // States cho Modal Nạp tiền & Thêm Key
       const [showTopUpModal, setShowTopUpModal] = useState(false);
       const [topUpAmount, setTopUpAmount] = useState(10);
       const [topUpMethod, setTopUpMethod] = useState('Chuyển khoản QR Ngân hàng');
@@ -96,7 +91,6 @@
       const [revealedKeys, setRevealedKeys] = useState({});
       const [toast, setToast] = useState(null);
 
-      // States cho Công cụ Ước tính
       const [calcModel, setCalcModel] = useState('flash2');
       const [inputTokens, setInputTokens] = useState(10);
       const [outputTokens, setOutputTokens] = useState(5);
@@ -122,7 +116,6 @@
         setTimeout(() => setToast(null), 3200);
       };
 
-      // TÍNH TOÁN CƠ CHẾ TRẢ TRƯỚC
       const totalUsed = useMemo(() => keys.reduce((sum, k) => sum + Number(k.spent), 0), [keys]);
       const remainingBalance = useMemo(() => Math.max(0, Number((totalDeposited - totalUsed).toFixed(2))), [totalDeposited, totalUsed]);
       const isOutOfMoney = remainingBalance <= 0;
@@ -132,7 +125,6 @@
 
       const formatVND = (usd) => Math.round(usd * exchangeRate).toLocaleString('vi-VN') + ' ₫';
 
-      // Kiểm tra trạng thái thực tế của từng Key (Tự động dừng nếu hết tiền chung hoặc vượt hạn mức riêng)
       const getKeyStatus = (k) => {
         if (isOutOfMoney) return { active: false, label: 'Đã dừng (Hết số dư ví)', color: 'red' };
         if (k.spent >= k.limit) return { active: false, label: 'Đã dừng (Chạm hạn mức Key)', color: 'amber' };
@@ -140,7 +132,6 @@
         return { active: true, label: 'Đang hoạt động', color: 'emerald' };
       };
 
-      // Xử lý Nạp tiền trả trước
       const handleTopUp = (e) => {
         e.preventDefault();
         const amount = Number(topUpAmount);
@@ -159,7 +150,6 @@
         notify(`Đã nạp thành công +$${amount.toFixed(2)} (${formatVND(amount)}) vào ví trả trước!`, 'success');
       };
 
-      // Mô phỏng sử dụng API (Trừ vào số dư trả trước, hết tiền tự dừng)
       const simulateApiCall = (id, cost = 2.00) => {
         if (isOutOfMoney) {
           notify('Số dư trả trước đã hết ($0.00)! Vui lòng nạp thêm tiền để tiếp tục sử dụng.', 'error');
@@ -175,7 +165,6 @@
           return;
         }
 
-        // Chỉ cho phép trừ tối đa bằng số tiền còn lại trong ví hoặc hạn mức còn lại của Key
         const maxAllowedByWallet = remainingBalance;
         const maxAllowedByKey = Number((targetKey.limit - targetKey.spent).toFixed(2));
         const actualCharge = Math.min(cost, maxAllowedByWallet, maxAllowedByKey);
@@ -198,7 +187,6 @@
         }
       };
 
-      // Thêm API Key mới
       const handleAddKey = (e) => {
         e.preventDefault();
         if (!newKeyName.trim()) return;
@@ -255,7 +243,7 @@
                 🔑
               </div>
               <div>
-                <h1 className="font-extrabold text-lg tracking-tight">Quản lý API</h1>
+                <h1 className="font-extrabold text-lg tracking-tight">QUẢN LÝ API</h1>
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
                   ● Chế độ Trả trước
                 </span>
@@ -300,6 +288,17 @@
                   <span>{item.label}</span>
                 </button>
               ))}
+
+              {/* NÚT MỞ NHANH GOOGLE AI STUDIO */}
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-amber-500 dark:text-amber-400 hover:bg-amber-500/10 transition-all border border-amber-500/20 mt-2"
+              >
+                <span className="text-base">↗</span>
+                <span>Mở Google AI Studio</span>
+              </a>
             </nav>
 
             <div className="mt-auto pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
@@ -322,7 +321,7 @@
                   🔑
                 </div>
                 <div>
-                  <h1 className="font-extrabold text-base leading-tight">Quản lý API</h1>
+                  <h1 className="font-extrabold text-base leading-tight">QUẢN LÝ API</h1>
                   <p className="text-[11px] text-emerald-500 font-semibold">● Trả trước • Hết tiền tự dừng</p>
                 </div>
               </div>
@@ -331,7 +330,7 @@
                   onClick={() => setShowTopUpModal(true)}
                   className="px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow"
                 >
-                  + Nạp tiền
+                  + Nạp
                 </button>
                 <button
                   onClick={() => setDarkMode(!darkMode)}
@@ -368,7 +367,7 @@
             {/* TAB 1: BẢNG ĐIỀU KHIỂN (DASHBOARD) */}
             {activeTab === 'dashboard' && (
               <div className="space-y-6">
-                {/* HERO WALLET CARD - THẺ VÍ TRẢ TRƯỚC CHÍNH */}
+                {/* HERO WALLET CARD */}
                 <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-slate-900 text-white p-6 md:p-8 shadow-xl">
                   <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div>
@@ -395,10 +394,18 @@
                       >
                         + Tạo API Key
                       </button>
+                      <a
+                        href="https://aistudio.google.com/app/apikey"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-4 py-3 rounded-2xl font-extrabold text-sm shadow-lg transition-all flex items-center gap-1.5"
+                      >
+                        <span>↗ Mở AI Studio</span>
+                      </a>
                     </div>
                   </div>
 
-                  {/* Thanh tiến trình Đã dùng vs Còn lại */}
+                  {/* Thanh tiến trình */}
                   <div className="mt-7 pt-6 border-t border-white/15">
                     <div className="flex justify-between text-xs font-semibold mb-2">
                       <span className="text-indigo-100">Đã sử dụng: ${totalUsed.toFixed(2)} ({usedPercentage}%)</span>
@@ -415,7 +422,7 @@
                   </div>
                 </div>
 
-                {/* 3 Ô THỐNG KÊ RÕ RÀNG: TỔNG NẠP - ĐÃ DÙNG - CÒN LẠI */}
+                {/* 3 Ô THỐNG KÊ */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="bg-white dark:bg-[#0f1624] p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
                     <div className="flex items-center justify-between">
@@ -447,12 +454,12 @@
                   </div>
                 </div>
 
-                {/* DANH SÁCH API KEY & TRẠNG THÁI TỰ ĐỘNG DỪNG */}
+                {/* DANH SÁCH API KEY */}
                 <div className="bg-white dark:bg-[#0f1624] p-5 md:p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
                     <div>
                       <h3 className="font-extrabold text-base md:text-lg">Trạng thái các API Key Trả trước</h3>
-                      <p className="text-xs text-slate-500">Bấm nút "Dùng thử -$2" để kiểm tra cơ chế trừ tiền và tự động khóa khi hết số dư</p>
+                      <p className="text-xs text-slate-500">Bấm nút "Dùng thử -$2" để kiểm tra cơ chế trừ tiền</p>
                     </div>
                     <button onClick={() => setActiveTab('keys')} className="text-xs font-bold text-indigo-500 hover:underline">
                       Quản lý chi tiết →
@@ -524,14 +531,24 @@
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
                     <h2 className="text-xl md:text-2xl font-extrabold">Quản lý API Keys Trả trước</h2>
-                    <p className="text-xs text-slate-500">Mỗi Key đều có hạn mức riêng và tự động ngắt ngay khi số dư ví về $0.00</p>
+                    <p className="text-xs text-slate-500">Quản lý các khóa API và kết nối trực tiếp với Google AI Studio</p>
                   </div>
-                  <button
-                    onClick={() => setShowKeyModal(true)}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-xs md:text-sm font-bold shadow-lg shadow-indigo-600/25"
-                  >
-                    + Thêm API Key mới
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href="https://aistudio.google.com/app/apikey"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-4 py-2.5 rounded-xl text-xs font-extrabold shadow-md flex items-center gap-1"
+                    >
+                      <span>↗ Lấy Key từ AI Studio</span>
+                    </a>
+                    <button
+                      onClick={() => setShowKeyModal(true)}
+                      className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-xs md:text-sm font-bold shadow-lg shadow-indigo-600/25"
+                    >
+                      + Thêm Key mới
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-4">
@@ -618,7 +635,7 @@
               </div>
             )}
 
-            {/* TAB 3: VÍ TRẢ TRƯỚC & NẠP TIỀN DỄ DÀNG */}
+            {/* TAB 3: VÍ TRẢ TRƯỚC & NẠP TIỀN */}
             {activeTab === 'wallet' && (
               <div className="space-y-6">
                 <div>
@@ -693,7 +710,7 @@
                     </button>
                   </div>
 
-                  {/* Khung Lịch sử Nạp tiền & Đối soát */}
+                  {/* Khung Lịch sử & Liên kết AI Studio */}
                   <div className="bg-white dark:bg-[#0f1624] p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-5">
                     <div>
                       <h3 className="font-extrabold text-base mb-4">Lịch sử nạp tiền gần đây</h3>
@@ -713,15 +730,16 @@
                       </div>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 text-xs space-y-2">
-                      <p className="font-bold">🔗 Liên kết trực tiếp Google AI Studio</p>
-                      <p className="text-slate-500">Bạn có thể mở trang quản trị gốc của Google bất cứ lúc nào để lấy mã API Key mới.</p>
+                    <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-500/30 text-xs space-y-2">
+                      <p className="font-bold text-amber-500 dark:text-amber-400">🔗 Truy cập nhanh Google AI Studio</p>
+                      <p className="text-slate-500">Mở trực tiếp trang quản trị chính thức của Google để lấy mã API Key mới.</p>
                       <a
                         href="https://aistudio.google.com/app/apikey"
                         target="_blank"
-                        className="inline-block mt-1 font-bold text-indigo-500 hover:underline"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 font-extrabold text-amber-600 dark:text-amber-400 hover:underline mt-1"
                       >
-                        Mở Google AI Studio API Key ↗
+                        <span>Mở Google AI Studio</span> <span>↗</span>
                       </a>
                     </div>
                   </div>
@@ -805,7 +823,7 @@
             ))}
           </nav>
 
-          {/* MODAL NẠP TIỀN TRẢ TRƯỚC NHANH */}
+          {/* MODAL NẠP TIỀN */}
           {showTopUpModal && (
             <div className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <form onSubmit={handleTopUp} className="bg-white dark:bg-[#0f1624] w-full max-w-md rounded-3xl p-6 border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xl">
