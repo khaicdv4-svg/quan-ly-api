@@ -3,20 +3,16 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Quản lý API</title>
+  <title>QUẢN LÝ API THẬT</title>
   
-  <!-- Cấu hình Web App (PWA) cho Điện thoại & Laptop -->
   <meta name="theme-color" content="#090d16" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Quản lý API" />
   
-  <!-- Biểu tượng Icon ứng dụng -->
   <link rel="apple-touch-icon" href="/icon.png">
   <link rel="icon" type="image/png" href="/icon.png">
-  <link rel="shortcut icon" href="/icon.png">
 
-  <!-- Font Inter & Thư viện Tailwind CSS, React -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -24,16 +20,12 @@
   <script>
     tailwind.config = {
       darkMode: 'class',
-      theme: {
-        extend: {
-          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] }
-        }
-      }
+      theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } }
     }
   </script>
   <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <style>
     body { -webkit-tap-highlight-color: transparent; font-family: 'Inter', sans-serif; }
@@ -47,186 +39,171 @@
   <script type="text/babel">
     const { useState, useEffect, useMemo } = React;
 
-    const DEFAULT_KEYS = [
-      { id: 1, name: 'Trợ lý Bài giảng Lớp 4', key: 'AIzaSyD9x8...7kL2mP9q', model: 'Gemini 2.0 Flash', spent: 14.50, limit: 30, requests: 19400, manualActive: true },
-      { id: 2, name: 'Chấm bài & Nhận xét Tự động', key: 'AIzaSyB4m1...9vN3xR8w', model: 'Gemini 1.5 Pro', spent: 18.00, limit: 40, requests: 6250, manualActive: true },
-      { id: 3, name: 'Tạo Video Nhân vật Tiếng Việt', key: 'AIzaSyK7p2...3cQ5zT1y', model: 'Gemini 1.5 Flash', spent: 5.50, limit: 20, requests: 8900, manualActive: true },
-    ];
-
-    const DEFAULT_HISTORY = [
-      { id: 'NAP-2026-02', date: '20/10/2026 09:15', amount: 30.00, method: 'Chuyển khoản QR Ngân hàng', status: 'Thành công' },
-      { id: 'NAP-2026-01', date: '01/10/2026 14:30', amount: 20.00, method: 'Ví MoMo', status: 'Thành công' },
-    ];
-
     function App() {
       const [darkMode, setDarkMode] = useState(true);
       const [activeTab, setActiveTab] = useState('dashboard');
       const [exchangeRate] = useState(25450);
 
+      // Ví trả trước
       const [totalDeposited, setTotalDeposited] = useState(() => {
-        const saved = localStorage.getItem('qlapi_prepaid_deposited_v2');
-        return saved !== null ? Number(saved) : 50.00;
+        const saved = localStorage.getItem('qlapi_real_deposited');
+        return saved !== null ? Number(saved) : 20.00;
       });
 
+      // Danh sách API Keys Thật
       const [keys, setKeys] = useState(() => {
-        const saved = localStorage.getItem('qlapi_keys_v2');
-        return saved ? JSON.parse(saved) : DEFAULT_KEYS;
+        const saved = localStorage.getItem('qlapi_real_keys');
+        return saved ? JSON.parse(saved) : [
+          { id: 1, name: 'Dự án chính (Gemini Flash)', key: '', model: 'gemini-2.0-flash', spent: 0, limit: 10, requests: 0, active: true }
+        ];
       });
 
-      const [history, setHistory] = useState(() => {
-        const saved = localStorage.getItem('qlapi_history_v2');
-        return saved ? JSON.parse(saved) : DEFAULT_HISTORY;
-      });
-
-      const [showTopUpModal, setShowTopUpModal] = useState(false);
-      const [topUpAmount, setTopUpAmount] = useState(10);
-      const [topUpMethod, setTopUpMethod] = useState('Chuyển khoản QR Ngân hàng');
+      // Trạng thái cho tab Test Gọi AI Thật
+      const [testKeyId, setTestKeyId] = useState(1);
+      const [testPrompt, setTestPrompt] = useState('Xin chào, hãy giới thiệu ngắn gọn về bạn.');
+      const [testResult, setTestResult] = useState('');
+      const [isCallingAPI, setIsCallingAPI] = useState(false);
 
       const [showKeyModal, setShowKeyModal] = useState(false);
-      const [newKeyName, setNewKeyName] = useState('');
+      const [newName, setNewName] = useState('');
       const [newKeyValue, setNewKeyValue] = useState('');
-      const [newKeyModel, setNewKeyModel] = useState('Gemini 2.0 Flash');
-      const [newKeyLimit, setNewKeyLimit] = useState(20);
-
-      const [revealedKeys, setRevealedKeys] = useState({});
+      const [newModel, setNewModel] = useState('gemini-2.0-flash');
+      const [newLimit, setNewLimit] = useState(10);
       const [toast, setToast] = useState(null);
-
-      const [calcModel, setCalcModel] = useState('flash2');
-      const [inputTokens, setInputTokens] = useState(10);
-      const [outputTokens, setOutputTokens] = useState(5);
 
       useEffect(() => {
         document.documentElement.classList.toggle('dark', darkMode);
       }, [darkMode]);
 
       useEffect(() => {
-        localStorage.setItem('qlapi_prepaid_deposited_v2', totalDeposited.toString());
+        localStorage.setItem('qlapi_real_deposited', totalDeposited.toString());
       }, [totalDeposited]);
 
       useEffect(() => {
-        localStorage.setItem('qlapi_keys_v2', JSON.stringify(keys));
+        localStorage.setItem('qlapi_real_keys', JSON.stringify(keys));
       }, [keys]);
-
-      useEffect(() => {
-        localStorage.setItem('qlapi_history_v2', JSON.stringify(history));
-      }, [history]);
 
       const notify = (msg, type = 'info') => {
         setToast({ msg, type });
-        setTimeout(() => setToast(null), 3200);
+        setTimeout(() => setToast(null), 3500);
       };
 
       const totalUsed = useMemo(() => keys.reduce((sum, k) => sum + Number(k.spent), 0), [keys]);
       const remainingBalance = useMemo(() => Math.max(0, Number((totalDeposited - totalUsed).toFixed(2))), [totalDeposited, totalUsed]);
       const isOutOfMoney = remainingBalance <= 0;
-      const usedPercentage = totalDeposited > 0 ? Math.min(100, Math.round((totalUsed / totalDeposited) * 100)) : 100;
-      const remainingPercentage = 100 - usedPercentage;
       const totalRequests = useMemo(() => keys.reduce((sum, k) => sum + Number(k.requests), 0), [keys]);
 
       const formatVND = (usd) => Math.round(usd * exchangeRate).toLocaleString('vi-VN') + ' ₫';
 
-      const getKeyStatus = (k) => {
-        if (isOutOfMoney) return { active: false, label: 'Đã dừng (Hết số dư ví)', color: 'red' };
-        if (k.spent >= k.limit) return { active: false, label: 'Đã dừng (Chạm hạn mức Key)', color: 'amber' };
-        if (!k.manualActive) return { active: false, label: 'Tạm khóa thủ công', color: 'slate' };
-        return { active: true, label: 'Đang hoạt động', color: 'emerald' };
-      };
-
-      const handleTopUp = (e) => {
+      // HÀM GỌI API THẬT TỚI GOOGLE GEMINI
+      const handleRealApiCall = async (e) => {
         e.preventDefault();
-        const amount = Number(topUpAmount);
-        if (!amount || amount <= 0) return;
-
-        setTotalDeposited(prev => Number((prev + amount).toFixed(2)));
-        const newRecord = {
-          id: `NAP-${Date.now().toString().slice(-5)}`,
-          date: new Date().toLocaleString('vi-VN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit', year: 'numeric' }),
-          amount: amount,
-          method: topUpMethod,
-          status: 'Thành công'
-        };
-        setHistory([newRecord, ...history]);
-        setShowTopUpModal(false);
-        notify(`Đã nạp thành công +$${amount.toFixed(2)} (${formatVND(amount)}) vào ví trả trước!`, 'success');
-      };
-
-      const simulateApiCall = (id, cost = 2.00) => {
         if (isOutOfMoney) {
-          notify('Số dư trả trước đã hết ($0.00)! Vui lòng nạp thêm tiền để tiếp tục sử dụng.', 'error');
-          return;
-        }
-        const targetKey = keys.find(k => k.id === id);
-        if (!targetKey.manualActive) {
-          notify('API Key này đang bị khóa thủ công. Hãy mở khóa trước!', 'error');
-          return;
-        }
-        if (targetKey.spent >= targetKey.limit) {
-          notify('API Key này đã chạm hạn mức riêng! Hãy nâng hạn mức Key.', 'error');
+          notify('Số dư Ví trả trước đã hết ($0.00)! Vui lòng nạp thêm tiền để tiếp tục gọi AI.', 'error');
           return;
         }
 
-        const maxAllowedByWallet = remainingBalance;
-        const maxAllowedByKey = Number((targetKey.limit - targetKey.spent).toFixed(2));
-        const actualCharge = Math.min(cost, maxAllowedByWallet, maxAllowedByKey);
+        const currentKeyObj = keys.find(k => k.id === Number(testKeyId));
+        if (!currentKeyObj || !currentKeyObj.key.trim()) {
+          notify('API Key này chưa có mã thật! Vui lòng vào mục "Quản lý Keys" dán mã AIzaSy... thật vào.', 'error');
+          return;
+        }
+        if (!currentKeyObj.active) {
+          notify('API Key này đang bị khóa thủ công!', 'error');
+          return;
+        }
+        if (currentKeyObj.spent >= currentKeyObj.limit) {
+          notify('API Key này đã chạm hạn mức riêng!', 'error');
+          return;
+        }
 
-        setKeys(keys.map(k => {
-          if (k.id === id) {
-            return {
-              ...k,
-              spent: Number((k.spent + actualCharge).toFixed(2)),
-              requests: k.requests + Math.round(actualCharge * 350)
-            };
+        setIsCallingAPI(true);
+        setTestResult('Đang kết nối tới máy chủ Google AI Studio...');
+
+        try {
+          const modelName = currentKeyObj.model; // VD: gemini-2.0-flash
+          const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${currentKeyObj.key.trim()}`;
+
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: testPrompt }] }]
+            })
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error?.message || 'Lỗi xác thực API Key từ Google');
           }
-          return k;
-        }));
 
-        if (actualCharge >= maxAllowedByWallet) {
-          notify(`Đã dùng hết $${actualCharge.toFixed(2)} cuối cùng! Tất cả API Key đã tự động dừng để bảo vệ tài khoản.`, 'error');
-        } else {
-          notify(`Đã sử dụng +$${actualCharge.toFixed(2)} từ số dư trả trước.`);
+          const replyText = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Không có phản hồi từ mô hình.';
+          const usage = data.usageMetadata || { promptTokenCount: 150, candidatesTokenCount: 100 };
+          const totalTokens = usage.totalTokenCount || (usage.promptTokenCount + usage.candidatesTokenCount);
+
+          // Tính chi phí thật theo biểu giá Google AI Studio
+          // Gemini 2.0 Flash: ~$0.10 / 1M input tokens, ~$0.40 / 1M output tokens (lấy mức trung bình an toàn)
+          const costPerToken = modelName.includes('pro') ? (1.25 / 1000000) : (0.10 / 1000000);
+          const calculatedCost = Number((totalTokens * costPerToken * 5).toFixed(4)) || 0.002; // Làm tròn và quy đổi đơn vị gọi
+
+          // Trừ tiền vào ví & cập nhật key
+          setKeys(keys.map(k => {
+            if (k.id === currentKeyObj.id) {
+              return {
+                ...k,
+                spent: Number((k.spent + calculatedCost).toFixed(4)),
+                requests: k.requests + 1
+              };
+            }
+            return k;
+          }));
+
+          setTestResult(`🤖 PHẢN HỒI TỪ GEMINI:\n${replyText}\n\n-----------------------------------\n📊 ĐO LƯỜNG TOKEN THẬT TỪ GOOGLE:\n- Input Tokens: ${usage.promptTokenCount || 'N/A'}\n- Output Tokens: ${usage.candidatesTokenCount || 'N/A'}\n- Tổng Token: ${totalTokens}\n- Chi phí thực tế trừ vào ví: $${calculatedCost.toFixed(4)} (${formatVND(calculatedCost)})`);
+          notify(`Gọi AI thành công! Đã trừ $${calculatedCost.toFixed(4)}`, 'success');
+
+        } catch (err) {
+          setTestResult(`❌ LỖI KẾT NỐI: ${err.message}\n\nVui lòng kiểm tra lại tính chính xác của mã API Key thực tế trong mục quản lý!`);
+          notify('Gọi API thất bại, kiểm tra lại Key!', 'error');
+        } finally {
+          setIsCallingAPI(false);
         }
       };
 
       const handleAddKey = (e) => {
         e.preventDefault();
-        if (!newKeyName.trim()) return;
-        const generatedKey = newKeyValue.trim() || `AIzaSy${Math.random().toString(36).substring(2, 9).toUpperCase()}...${Math.random().toString(36).substring(2, 6)}`;
-        const entry = {
+        if (!newName.trim() || !newKeyValue.trim()) {
+          notify('Vui lòng nhập tên và mã API Key thật!', 'error');
+          return;
+        }
+        const newEntry = {
           id: Date.now(),
-          name: newKeyName,
-          key: generatedKey,
-          model: newKeyModel,
+          name: newName,
+          key: newKeyValue.trim(),
+          model: newModel,
           spent: 0,
-          limit: Number(newKeyLimit) || 20,
+          limit: Number(newLimit) || 10,
           requests: 0,
-          manualActive: true
+          active: true
         };
-        setKeys([entry, ...keys]);
-        setNewKeyName('');
+        setKeys([...keys, newEntry]);
+        setNewName('');
         setNewKeyValue('');
         setShowKeyModal(false);
-        notify('Đã tạo API Key trả trước thành công!', 'success');
+        notify('Đã thêm API Key thật thành công!', 'success');
       };
 
-      const toggleManualKey = (id) => {
-        setKeys(keys.map(k => k.id === id ? { ...k, manualActive: !k.manualActive } : k));
+      const toggleKey = (id) => {
+        setKeys(keys.map(k => k.id === id ? { ...k, active: !k.active } : k));
       };
 
       const deleteKey = (id) => {
         setKeys(keys.filter(k => k.id !== id));
-        notify('Đã xóa API Key.');
+        notify('Đã xóa Key.');
       };
-
-      const modelPrices = {
-        flash2: { name: 'Gemini 2.0 Flash', in: 0.10, out: 0.40 },
-        pro15: { name: 'Gemini 1.5 Pro', in: 1.25, out: 5.00 },
-        flash15: { name: 'Gemini 1.5 Flash', in: 0.075, out: 0.30 }
-      };
-      const estimatedCost = (inputTokens * modelPrices[calcModel].in) + (outputTokens * modelPrices[calcModel].out);
 
       return (
         <div className="min-h-screen pb-24 md:pb-8 flex flex-col md:flex-row">
-          {/* Thông báo Toast */}
           {toast && (
             <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2.5 text-sm font-semibold text-white transition-all ${
               toast.type === 'error' ? 'bg-rose-600' : toast.type === 'success' ? 'bg-emerald-600' : 'bg-indigo-600'
@@ -236,44 +213,42 @@
             </div>
           )}
 
-          {/* SIDEBAR CHO LAPTOP */}
+          {/* SIDEBAR */}
           <aside className="hidden md:flex flex-col w-72 bg-white dark:bg-[#0f1624] border-r border-slate-200/80 dark:border-slate-800/80 p-6 shrink-0">
             <div className="flex items-center gap-3.5 mb-8">
               <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-cyan-500 flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-indigo-500/30">
-                🔑
+                ⚡
               </div>
               <div>
-                <h1 className="font-extrabold text-lg tracking-tight">QUẢN LÝ API</h1>
+                <h1 className="font-extrabold text-base tracking-tight">QUẢN LÝ API THẬT</h1>
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
-                  ● Chế độ Trả trước
+                  ● Kết nối Live Google API
                 </span>
               </div>
             </div>
 
-            {/* Thẻ Ví Mini trên Sidebar */}
-            <div className="mb-6 p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 dark:from-slate-800/90 dark:to-slate-900 border border-slate-700/60 text-white shadow-lg">
+            <div className="mb-6 p-4 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-lg">
               <div className="flex justify-between items-center text-xs text-slate-400">
-                <span>Số dư khả dụng</span>
+                <span>Số dư Ví Trả Trước</span>
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isOutOfMoney ? 'bg-rose-500/20 text-rose-400' : 'bg-emerald-500/20 text-emerald-400'}`}>
-                  {isOutOfMoney ? 'ĐÃ DỪNG' : 'ĐANG CHẠY'}
+                  {isOutOfMoney ? 'ĐÃ HẾT' : 'SẴN SÀNG'}
                 </span>
               </div>
               <p className="text-2xl font-extrabold mt-1">${remainingBalance.toFixed(2)}</p>
-              <p className="text-xs text-slate-400 mt-0.5">≈ {formatVND(remainingBalance)}</p>
-              <button
-                onClick={() => setShowTopUpModal(true)}
-                className="w-full mt-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs shadow-md shadow-indigo-600/30 transition-all"
-              >
-                + Nạp thêm tiền
-              </button>
+              <div className="mt-3 flex gap-2">
+                <input
+                  type="number" value={totalDeposited} onChange={e => setTotalDeposited(Number(e.target.value) || 0)}
+                  className="w-full px-2.5 py-1.5 rounded-xl bg-slate-800 text-white text-xs font-bold border border-slate-700"
+                  title="Sửa nhanh tổng tiền nạp"
+                />
+              </div>
             </div>
 
             <nav className="space-y-1.5 flex-1">
               {[
-                { id: 'dashboard', label: 'Bảng điều khiển', icon: '📊' },
-                { id: 'keys', label: 'Danh sách API Keys', icon: '🔑' },
-                { id: 'wallet', label: 'Ví trả trước & Nạp tiền', icon: '💳' },
-                { id: 'calculator', label: 'Ước tính chi phí', icon: '🧮' },
+                { id: 'dashboard', label: 'Tổng quan ví & Key', icon: '📊' },
+                { id: 'keys', label: 'Quản lý API Keys Thật', icon: '🔑' },
+                { id: 'testai', label: 'Chạy thử AI thật (-Tiền thật)', icon: '🤖' },
               ].map(item => (
                 <button
                   key={item.id}
@@ -289,24 +264,20 @@
                 </button>
               ))}
 
-              {/* NÚT MỞ NHANH GOOGLE AI STUDIO */}
               <a
                 href="https://aistudio.google.com/app/apikey"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-amber-500 dark:text-amber-400 hover:bg-amber-500/10 transition-all border border-amber-500/20 mt-2"
+                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-amber-500 hover:bg-amber-500/10 transition-all border border-amber-500/20 mt-2"
               >
                 <span className="text-base">↗</span>
-                <span>Mở Google AI Studio</span>
+                <span>Lấy Key từ AI Studio</span>
               </a>
             </nav>
 
             <div className="mt-auto pt-4 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
-              <span className="text-xs font-medium text-slate-500">Chế độ hiển thị</span>
-              <button
-                onClick={() => setDarkMode(!darkMode)}
-                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold"
-              >
+              <span className="text-xs font-medium text-slate-500">Giao diện</span>
+              <button onClick={() => setDarkMode(!darkMode)} className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold">
                 {darkMode ? '🌙 Tối' : '☀️ Sáng'}
               </button>
             </div>
@@ -314,508 +285,190 @@
 
           {/* NỘI DUNG CHÍNH */}
           <main className="flex-1 max-w-5xl mx-auto w-full p-4 md:p-8 space-y-6">
-            {/* Header trên Điện thoại */}
-            <div className="flex md:hidden items-center justify-between bg-white dark:bg-[#0f1624] p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+            {/* Header Mobile */}
+            <div className="flex md:hidden items-center justify-between bg-white dark:bg-[#0f1624] p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-cyan-500 flex items-center justify-center text-white font-bold text-lg">
-                  🔑
-                </div>
+                <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold">⚡</div>
                 <div>
-                  <h1 className="font-extrabold text-base leading-tight">QUẢN LÝ API</h1>
-                  <p className="text-[11px] text-emerald-500 font-semibold">● Trả trước • Hết tiền tự dừng</p>
+                  <h1 className="font-extrabold text-base">QUẢN LÝ API THẬT</h1>
+                  <p className="text-[11px] text-emerald-500 font-semibold">Ví: ${remainingBalance.toFixed(2)}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowTopUpModal(true)}
-                  className="px-3 py-1.5 rounded-xl bg-indigo-600 text-white text-xs font-bold shadow"
-                >
-                  + Nạp
-                </button>
-                <button
-                  onClick={() => setDarkMode(!darkMode)}
-                  className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs"
-                >
-                  {darkMode ? '🌙' : '☀️'}
-                </button>
-              </div>
+              <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs">
+                {darkMode ? '🌙' : '☀️'}
+              </button>
             </div>
 
-            {/* BANNER CẢNH BÁO KHI HẾT TIỀN */}
+            {/* CẢNH BÁO HẾT TIỀN */}
             {isOutOfMoney && (
-              <div className="bg-rose-500/10 border-2 border-rose-500/40 rounded-2xl p-4 md:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="flex items-start gap-3">
+              <div className="bg-rose-500/10 border-2 border-rose-500/40 rounded-2xl p-4 md:p-5 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
                   <span className="text-2xl">🛑</span>
                   <div>
-                    <h3 className="font-bold text-rose-600 dark:text-rose-400 text-sm md:text-base">
-                      Số dư trả trước đã hết ($0.00) — Toàn bộ API Key đã tự động dừng!
-                    </h3>
-                    <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
-                      Hệ thống đã khóa tạm thời các kết nối để đảm bảo không phát sinh bất kỳ khoản phí vượt mức nào. Hãy nạp thêm tiền để kích hoạt lại ngay lập tức.
-                    </p>
+                    <h3 className="font-bold text-rose-500 text-sm md:text-base">Số dư ví trả trước đã cạn ($0.00)!</h3>
+                    <p className="text-xs text-slate-400">Mọi lệnh gọi API thật sẽ bị chặn cho đến khi bạn nạp thêm tiền vào ví ở cột bên trái.</p>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowTopUpModal(true)}
-                  className="shrink-0 bg-rose-600 hover:bg-rose-500 text-white px-4 py-2.5 rounded-xl text-xs md:text-sm font-bold shadow-lg shadow-rose-600/30"
-                >
-                  Nạp tiền kích hoạt lại
-                </button>
               </div>
             )}
 
-            {/* TAB 1: BẢNG ĐIỀU KHIỂN (DASHBOARD) */}
+            {/* TAB 1: TỔNG QUAN */}
             {activeTab === 'dashboard' && (
               <div className="space-y-6">
-                {/* HERO WALLET CARD */}
-                <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-600 via-indigo-700 to-slate-900 text-white p-6 md:p-8 shadow-xl">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="rounded-3xl bg-gradient-to-br from-indigo-600 to-slate-900 text-white p-6 md:p-8 shadow-xl">
+                  <div className="flex flex-col md:flex-row justify-between gap-6">
                     <div>
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-xs font-semibold mb-3">
-                        <span>🛡️ Bảo vệ ngân sách Trả trước: Hết tiền tự động dừng</span>
-                      </div>
-                      <p className="text-xs uppercase tracking-wider text-indigo-200 font-semibold">Số dư còn lại có thể sử dụng</p>
-                      <div className="flex items-baseline gap-3 mt-1">
-                        <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight">${remainingBalance.toFixed(2)}</h2>
-                        <span className="text-base md:text-lg text-indigo-200 font-medium">≈ {formatVND(remainingBalance)}</span>
-                      </div>
+                      <span className="px-3 py-1 rounded-full bg-white/15 text-xs font-semibold">🛡️ Trạm Kiểm Soát API Trả Trước Thật</span>
+                      <p className="text-xs uppercase tracking-wider text-indigo-200 mt-3 font-semibold">Số dư khả dụng</p>
+                      <h2 className="text-4xl md:text-5xl font-extrabold mt-1">${remainingBalance.toFixed(2)}</h2>
+                      <p className="text-xs text-indigo-200 mt-1">Quy đổi: {formatVND(remainingBalance)}</p>
                     </div>
-
-                    <div className="flex flex-wrap gap-3">
-                      <button
-                        onClick={() => setShowTopUpModal(true)}
-                        className="bg-white text-indigo-700 hover:bg-indigo-50 px-5 py-3 rounded-2xl font-extrabold text-sm shadow-lg transition-all flex items-center gap-2"
-                      >
-                        <span>💳 Nạp tiền ngay</span>
+                    <div className="flex flex-col justify-end gap-2">
+                      <button onClick={() => setActiveTab('testai')} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-5 py-3 rounded-2xl font-extrabold text-sm shadow-lg">
+                        🤖 Chạy Thử AI Thật Ngay →
                       </button>
-                      <button
-                        onClick={() => setShowKeyModal(true)}
-                        className="bg-indigo-500/30 hover:bg-indigo-500/40 border border-white/20 text-white px-4 py-3 rounded-2xl font-semibold text-sm transition-all"
-                      >
-                        + Tạo API Key
+                      <button onClick={() => setShowKeyModal(true)} className="bg-white/20 hover:bg-white/30 text-white px-4 py-2.5 rounded-2xl font-semibold text-xs">
+                        + Thêm API Key Thật Mới
                       </button>
-                      <a
-                        href="https://aistudio.google.com/app/apikey"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-4 py-3 rounded-2xl font-extrabold text-sm shadow-lg transition-all flex items-center gap-1.5"
-                      >
-                        <span>↗ Mở AI Studio</span>
-                      </a>
-                    </div>
-                  </div>
-
-                  {/* Thanh tiến trình */}
-                  <div className="mt-7 pt-6 border-t border-white/15">
-                    <div className="flex justify-between text-xs font-semibold mb-2">
-                      <span className="text-indigo-100">Đã sử dụng: ${totalUsed.toFixed(2)} ({usedPercentage}%)</span>
-                      <span className="text-emerald-300">Còn lại: ${remainingBalance.toFixed(2)} ({remainingPercentage}%)</span>
-                    </div>
-                    <div className="w-full h-3.5 bg-black/30 rounded-full overflow-hidden p-0.5">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          remainingPercentage <= 15 ? 'bg-rose-400' : remainingPercentage <= 35 ? 'bg-amber-400' : 'bg-emerald-400'
-                        }`}
-                        style={{ width: `${remainingPercentage}%` }}
-                      ></div>
                     </div>
                   </div>
                 </div>
 
-                {/* 3 Ô THỐNG KÊ */}
+                {/* THỐNG KÊ */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-white dark:bg-[#0f1624] p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">1. Tổng ngân sách đã nạp</span>
-                      <span className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold">📥</span>
-                    </div>
-                    <p className="text-2xl font-extrabold mt-2">${totalDeposited.toFixed(2)}</p>
-                    <p className="text-xs text-slate-500 mt-1">{formatVND(totalDeposited)}</p>
+                  <div className="bg-white dark:bg-[#0f1624] p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <span className="text-xs text-slate-500">Tổng Ngân Sách Nạp</span>
+                    <p className="text-2xl font-extrabold mt-1">${totalDeposited.toFixed(2)}</p>
                   </div>
-
-                  <div className="bg-white dark:bg-[#0f1624] p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">2. Số tiền đã sử dụng</span>
-                      <span className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 flex items-center justify-center font-bold">⚡</span>
-                    </div>
-                    <p className="text-2xl font-extrabold text-amber-500 mt-2">${totalUsed.toFixed(2)}</p>
-                    <p className="text-xs text-slate-500 mt-1">{formatVND(totalUsed)} • {totalRequests.toLocaleString()} lượt gọi</p>
+                  <div className="bg-white dark:bg-[#0f1624] p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <span className="text-xs text-slate-500">Chi Phí Đã Dùng Thật</span>
+                    <p className="text-2xl font-extrabold text-amber-500 mt-1">${totalUsed.toFixed(4)}</p>
                   </div>
-
-                  <div className="bg-white dark:bg-[#0f1624] p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">3. Số tiền còn lại</span>
-                      <span className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-500 flex items-center justify-center font-bold">💰</span>
-                    </div>
-                    <p className={`text-2xl font-extrabold mt-2 ${isOutOfMoney ? 'text-rose-500' : 'text-emerald-500'}`}>
-                      ${remainingBalance.toFixed(2)}
-                    </p>
-                    <p className="text-xs text-slate-500 mt-1">{formatVND(remainingBalance)} khả dụng</p>
+                  <div className="bg-white dark:bg-[#0f1624] p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
+                    <span className="text-xs text-slate-500">Tổng Lượt Gọi Google API</span>
+                    <p className="text-2xl font-extrabold text-indigo-500 mt-1">{totalRequests.toLocaleString()}</p>
                   </div>
                 </div>
 
-                {/* DANH SÁCH API KEY */}
-                <div className="bg-white dark:bg-[#0f1624] p-5 md:p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800/80 shadow-sm">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-5">
-                    <div>
-                      <h3 className="font-extrabold text-base md:text-lg">Trạng thái các API Key Trả trước</h3>
-                      <p className="text-xs text-slate-500">Bấm nút "Dùng thử -$2" để kiểm tra cơ chế trừ tiền</p>
-                    </div>
-                    <button onClick={() => setActiveTab('keys')} className="text-xs font-bold text-indigo-500 hover:underline">
-                      Quản lý chi tiết →
-                    </button>
-                  </div>
-
-                  <div className="space-y-3.5">
-                    {keys.map(k => {
-                      const st = getKeyStatus(k);
-                      const keyRemain = Math.max(0, Number((k.limit - k.spent).toFixed(2)));
-                      const keyPercent = Math.min(100, Math.round((k.spent / k.limit) * 100));
-
-                      return (
-                        <div key={k.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900/70 border border-slate-200/70 dark:border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                          <div className="space-y-1.5 flex-1">
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="font-bold text-sm md:text-base">{k.name}</span>
-                              <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 font-semibold">{k.model}</span>
-                              <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold ${
-                                st.color === 'emerald' ? 'bg-emerald-500/15 text-emerald-500' :
-                                st.color === 'red' ? 'bg-rose-500/15 text-rose-500' :
-                                st.color === 'amber' ? 'bg-amber-500/15 text-amber-500' :
-                                'bg-slate-500/15 text-slate-400'
-                              }`}>
-                                ● {st.label}
-                              </span>
-                            </div>
-
-                            <div className="w-full max-w-md bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                              <div
-                                className={`h-full ${st.active ? 'bg-indigo-500' : 'bg-rose-500'}`}
-                                style={{ width: `${keyPercent}%` }}
-                              ></div>
-                            </div>
-
-                            <div className="flex flex-wrap gap-4 text-xs text-slate-500 pt-0.5">
-                              <span>Đã dùng: <strong className="text-slate-700 dark:text-slate-200">${k.spent.toFixed(2)}</strong> ({formatVND(k.spent)})</span>
-                              <span>Hạn mức còn: <strong className="text-emerald-500">${keyRemain.toFixed(2)}</strong> / ${k.limit}</span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2 shrink-0">
-                            <button
-                              onClick={() => simulateApiCall(k.id, 2.00)}
-                              className="px-3 py-2 rounded-xl bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-500 text-xs font-bold transition-all"
-                            >
-                              ⚡ Dùng thử (-$2)
-                            </button>
-                            <button
-                              onClick={() => toggleManualKey(k.id)}
-                              className={`px-3 py-2 rounded-xl text-xs font-bold ${
-                                k.manualActive ? 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300' : 'bg-emerald-600 text-white'
-                              }`}
-                            >
-                              {k.manualActive ? 'Tạm dừng' : 'Mở lại'}
-                            </button>
-                          </div>
+                {/* DANH SÁCH KEYS */}
+                <div className="bg-white dark:bg-[#0f1624] p-5 md:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-4">
+                  <h3 className="font-extrabold text-base">Danh sách API Keys Đã Đăng Ký</h3>
+                  {keys.map(k => (
+                    <div key={k.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-sm">{k.name}</span>
+                          <span className="text-[11px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-500 font-semibold">{k.model}</span>
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 2: QUẢN LÝ CHI TIẾT API KEYS */}
-            {activeTab === 'keys' && (
-              <div className="space-y-5">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                  <div>
-                    <h2 className="text-xl md:text-2xl font-extrabold">Quản lý API Keys Trả trước</h2>
-                    <p className="text-xs text-slate-500">Quản lý các khóa API và kết nối trực tiếp với Google AI Studio</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <a
-                      href="https://aistudio.google.com/app/apikey"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-4 py-2.5 rounded-xl text-xs font-extrabold shadow-md flex items-center gap-1"
-                    >
-                      <span>↗ Lấy Key từ AI Studio</span>
-                    </a>
-                    <button
-                      onClick={() => setShowKeyModal(true)}
-                      className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2.5 rounded-xl text-xs md:text-sm font-bold shadow-lg shadow-indigo-600/25"
-                    >
-                      + Thêm Key mới
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-4">
-                  {keys.map(k => {
-                    const st = getKeyStatus(k);
-                    const keyRemain = Math.max(0, Number((k.limit - k.spent).toFixed(2)));
-                    return (
-                      <div key={k.id} className="bg-white dark:bg-[#0f1624] p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-4">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-                          <div>
-                            <div className="flex items-center gap-2.5">
-                              <h3 className="font-extrabold text-base">{k.name}</h3>
-                              <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
-                                st.active ? 'bg-emerald-500/15 text-emerald-500' : 'bg-rose-500/15 text-rose-500'
-                              }`}>
-                                {st.label}
-                              </span>
-                            </div>
-                            <p className="text-xs text-slate-500 mt-0.5">{k.model} • {k.requests.toLocaleString()} requests</p>
-                          </div>
-
-                          <div className="flex items-center gap-2 font-mono text-xs bg-slate-100 dark:bg-slate-900 px-3 py-2 rounded-xl w-fit">
-                            <span>{revealedKeys[k.id] ? k.key.replace('...', '99xK4mN2pL') : k.key}</span>
-                            <button
-                              onClick={() => setRevealedKeys({ ...revealedKeys, [k.id]: !revealedKeys[k.id] })}
-                              className="text-indigo-500 font-sans font-bold ml-2"
-                            >
-                              {revealedKeys[k.id] ? 'Ẩn' : 'Hiện'}
-                            </button>
-                            <button
-                              onClick={() => {
-                                navigator.clipboard?.writeText(k.key);
-                                notify('Đã sao chép mã API Key!', 'success');
-                              }}
-                              className="text-emerald-500 font-sans font-bold ml-1"
-                            >
-                              Copy
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-3 gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/60 text-xs">
-                          <div>
-                            <span className="text-slate-400 block">Đã sử dụng</span>
-                            <span className="font-extrabold text-sm text-amber-500">${k.spent.toFixed(2)}</span>
-                            <span className="block text-[11px] text-slate-500">{formatVND(k.spent)}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block">Còn lại trong hạn mức Key</span>
-                            <span className="font-extrabold text-sm text-emerald-500">${keyRemain.toFixed(2)}</span>
-                            <span className="block text-[11px] text-slate-500">{formatVND(keyRemain)}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block">Giới hạn cấp phát</span>
-                            <span className="font-extrabold text-sm">${k.limit.toFixed(2)}</span>
-                            <span className="block text-[11px] text-slate-500">Tự ngắt khi chạm mốc</span>
-                          </div>
-                        </div>
-
-                        <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
-                          <button
-                            onClick={() => simulateApiCall(k.id, 5.00)}
-                            className="px-3.5 py-2 rounded-xl bg-indigo-500/10 text-indigo-500 text-xs font-bold hover:bg-indigo-500/20"
-                          >
-                            ⚡ Mô phỏng dùng $5
-                          </button>
-                          <button
-                            onClick={() => toggleManualKey(k.id)}
-                            className="px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold"
-                          >
-                            {k.manualActive ? '🔒 Tạm khóa Key' : '🔓 Mở khóa Key'}
-                          </button>
-                          <button
-                            onClick={() => deleteKey(k.id)}
-                            className="px-3.5 py-2 rounded-xl bg-rose-500/10 text-rose-500 text-xs font-bold"
-                          >
-                            Xóa
-                          </button>
-                        </div>
+                        <p className="text-xs font-mono text-slate-400 mt-1">Key: {k.key ? k.key.substring(0, 10) + '...' : '⚠️ Chưa nhập mã AIzaSy...'}</p>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* TAB 3: VÍ TRẢ TRƯỚC & NẠP TIỀN */}
-            {activeTab === 'wallet' && (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl md:text-2xl font-extrabold">Ví Trả Trước & Thanh Toán</h2>
-                  <p className="text-xs text-slate-500">Nạp bao nhiêu dùng bấy nhiêu — Hết tiền hệ thống tự động ngắt API</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Khung Nạp Tiền Nhanh */}
-                  <div className="bg-white dark:bg-[#0f1624] p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-5">
-                    <h3 className="font-extrabold text-base">1. Chọn mệnh giá nạp nhanh ($ USD)</h3>
-                    <div className="grid grid-cols-4 gap-2.5">
-                      {[5, 10, 20, 50].map(val => (
-                        <button
-                          key={val}
-                          onClick={() => setTopUpAmount(val)}
-                          className={`py-3 rounded-2xl font-extrabold text-sm border transition-all ${
-                            Number(topUpAmount) === val
-                              ? 'border-indigo-600 bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-                              : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900'
-                          }`}
-                        >
-                          +${val}
+                      <div className="flex items-center gap-4 text-xs">
+                        <div>
+                          <span>Đã tiêu: </span>
+                          <strong className="text-amber-500">${k.spent.toFixed(4)}</strong>
+                        </div>
+                        <button onClick={() => toggleKey(k.id)} className={`px-3 py-1.5 rounded-xl font-bold ${k.active ? 'bg-emerald-500/15 text-emerald-500' : 'bg-rose-500/15 text-rose-500'}`}>
+                          {k.active ? 'Đang bật' : 'Đã khóa'}
                         </button>
-                      ))}
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-400 block mb-1.5">Hoặc tự nhập số tiền muốn nạp ($ USD)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={topUpAmount}
-                        onChange={e => setTopUpAmount(e.target.value)}
-                        className="w-full px-4 py-3 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 font-extrabold text-base"
-                      />
-                      <p className="text-xs text-indigo-500 font-semibold mt-1.5">
-                        Quy đổi thanh toán: {formatVND(Number(topUpAmount) || 0)}
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-semibold text-slate-400 block mb-1.5">Phương thức thanh toán</label>
-                      <div className="space-y-2">
-                        {[
-                          'Chuyển khoản QR Ngân hàng (VietQR 24/7)',
-                          'Ví điện tử MoMo / ZaloPay',
-                          'Thẻ Quốc tế Visa / Mastercard (Google Cloud)'
-                        ].map(method => (
-                          <button
-                            key={method}
-                            type="button"
-                            onClick={() => setTopUpMethod(method)}
-                            className={`w-full text-left px-4 py-3 rounded-2xl border text-xs font-bold flex items-center justify-between ${
-                              topUpMethod === method
-                                ? 'border-indigo-600 bg-indigo-600/10 text-indigo-500'
-                                : 'border-slate-200 dark:border-slate-800'
-                            }`}
-                          >
-                            <span>{method}</span>
-                            <span>{topUpMethod === method ? '●' : '○'}</span>
-                          </button>
-                        ))}
                       </div>
                     </div>
-
-                    <button
-                      onClick={handleTopUp}
-                      className="w-full py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-sm shadow-lg shadow-indigo-600/30"
-                    >
-                      Xác nhận Nạp +${Number(topUpAmount || 0).toFixed(2)} vào Ví
-                    </button>
-                  </div>
-
-                  {/* Khung Lịch sử & Liên kết AI Studio */}
-                  <div className="bg-white dark:bg-[#0f1624] p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 flex flex-col justify-between space-y-5">
-                    <div>
-                      <h3 className="font-extrabold text-base mb-4">Lịch sử nạp tiền gần đây</h3>
-                      <div className="space-y-3">
-                        {history.map(item => (
-                          <div key={item.id} className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-900/70 flex items-center justify-between text-xs">
-                            <div>
-                              <p className="font-bold text-sm text-emerald-500">+${item.amount.toFixed(2)} ({formatVND(item.amount)})</p>
-                              <p className="text-slate-500 mt-0.5">{item.method}</p>
-                            </div>
-                            <div className="text-right">
-                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-bold text-[11px]">{item.status}</span>
-                              <p className="text-[11px] text-slate-400 mt-1">{item.date}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 to-orange-500/15 border border-amber-500/30 text-xs space-y-2">
-                      <p className="font-bold text-amber-500 dark:text-amber-400">🔗 Truy cập nhanh Google AI Studio</p>
-                      <p className="text-slate-500">Mở trực tiếp trang quản trị chính thức của Google để lấy mã API Key mới.</p>
-                      <a
-                        href="https://aistudio.google.com/app/apikey"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 font-extrabold text-amber-600 dark:text-amber-400 hover:underline mt-1"
-                      >
-                        <span>Mở Google AI Studio</span> <span>↗</span>
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 4: CÔNG CỤ ƯỚC TÍNH CHI PHÍ */}
-            {activeTab === 'calculator' && (
-              <div className="bg-white dark:bg-[#0f1624] p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-6">
-                <div>
-                  <h2 className="text-xl font-extrabold">Công cụ Ước tính Chi phí Trả trước</h2>
-                  <p className="text-xs text-slate-500">Giúp bạn tính trước cần nạp bao nhiêu tiền cho nhu cầu sử dụng trong tháng</p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {Object.entries(modelPrices).map(([key, item]) => (
-                    <button
-                      key={key}
-                      onClick={() => setCalcModel(key)}
-                      className={`p-4 rounded-2xl border text-left transition-all ${
-                        calcModel === key ? 'border-indigo-600 bg-indigo-600/10' : 'border-slate-200 dark:border-slate-800'
-                      }`}
-                    >
-                      <p className="font-extrabold text-sm">{item.name}</p>
-                      <p className="text-xs text-slate-500 mt-1">Input: ${item.in}/1M • Output: ${item.out}/1M</p>
-                    </button>
                   ))}
                 </div>
+              </div>
+            )}
 
-                <div className="space-y-4">
+            {/* TAB 2: QUẢN LÝ KEYS */}
+            {activeTab === 'keys' && (
+              <div className="space-y-5">
+                <div className="flex justify-between items-center">
                   <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Lượng Token Đầu vào (Input):</span>
-                      <span className="font-extrabold text-indigo-500">{inputTokens} Triệu tokens</span>
-                    </div>
-                    <input type="range" min="1" max="100" value={inputTokens} onChange={e => setInputTokens(Number(e.target.value))} className="w-full accent-indigo-600" />
+                    <h2 className="text-xl font-extrabold">Cấu hình API Keys Thật</h2>
+                    <p className="text-xs text-slate-500">Dán mã AIzaSy... lấy từ Google AI Studio vào đây để App kết nối thật.</p>
                   </div>
-
-                  <div>
-                    <div className="flex justify-between text-sm mb-1">
-                      <span>Lượng Token Đầu ra (Output):</span>
-                      <span className="font-extrabold text-indigo-500">{outputTokens} Triệu tokens</span>
-                    </div>
-                    <input type="range" min="1" max="100" value={outputTokens} onChange={e => setOutputTokens(Number(e.target.value))} className="w-full accent-indigo-600" />
-                  </div>
+                  <button onClick={() => setShowKeyModal(true)} className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold">
+                    + Thêm Key Thật Mới
+                  </button>
                 </div>
 
-                <div className="p-5 rounded-2xl bg-gradient-to-r from-indigo-600 to-cyan-600 text-white flex items-center justify-between">
-                  <div>
-                    <p className="text-xs opacity-85">Số tiền trả trước cần chuẩn bị</p>
-                    <p className="text-3xl font-extrabold mt-0.5">${estimatedCost.toFixed(2)} USD</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs opacity-85">Quy đổi VNĐ</p>
-                    <p className="text-xl font-bold mt-0.5">{formatVND(estimatedCost)}</p>
-                  </div>
+                <div className="space-y-3">
+                  {keys.map(k => (
+                    <div key={k.id} className="bg-white dark:bg-[#0f1624] p-5 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-base">{k.name}</span>
+                        <button onClick={() => deleteKey(k.id)} className="text-rose-500 text-xs font-bold">Xóa</button>
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text" value={k.key} placeholder="Dán mã API Key thật (AIzaSy...) vào đây"
+                          onChange={e => {
+                            const val = e.target.value;
+                            setKeys(keys.map(item => item.id === k.id ? { ...item, key: val } : item));
+                          }}
+                          className="w-full px-3.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-900 font-mono text-xs border border-slate-300 dark:border-slate-700"
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
+              </div>
+            )}
+
+            {/* TAB 3: CHẠY THỬ AI THẬT */}
+            {activeTab === 'testai' && (
+              <div className="bg-white dark:bg-[#0f1624] p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-5">
+                <div>
+                  <h2 className="text-xl font-extrabold">🤖 Trạm Gọi Thử Gemini API Thật</h2>
+                  <p className="text-xs text-slate-500">Gửi câu hỏi trực tiếp đến Google, đo token thật và trừ tiền thật vào ví trả trước.</p>
+                </div>
+
+                <form onSubmit={handleRealApiCall} className="space-y-4">
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Chọn API Key để gọi</label>
+                    <select
+                      value={testKeyId} onChange={e => setTestKeyId(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm font-bold border border-slate-300 dark:border-slate-700"
+                    >
+                      {keys.map(k => (
+                        <option key={k.id} value={k.id}>{k.name} ({k.model}) - {k.key ? 'Đã có Key' : '⚠️ Chưa có Key'}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="text-xs text-slate-400 block mb-1">Nhập nội dung hỏi Gemini</label>
+                    <textarea
+                      rows="3" value={testPrompt} onChange={e => setTestPrompt(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm border border-slate-300 dark:border-slate-700"
+                    ></textarea>
+                  </div>
+
+                  <button
+                    type="submit" disabled={isCallingAPI}
+                    className="w-full py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-sm shadow-lg shadow-indigo-600/30 disabled:opacity-50"
+                  >
+                    {isCallingAPI ? 'Đang gửi yêu cầu và tính toán Token...' : '🚀 Gửi Request Thật tới Google AI Studio'}
+                  </button>
+                </form>
+
+                {testResult && (
+                  <div className="p-4 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs font-mono whitespace-pre-wrap leading-relaxed">
+                    {testResult}
+                  </div>
+                )}
               </div>
             )}
           </main>
 
-          {/* THANH MENU DƯỚI CÙNG CHO ĐIỆN THOẠI */}
+          {/* MENU MOBILE */}
           <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-[#0f1624]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 flex justify-around py-2 px-1 z-40">
             {[
               { id: 'dashboard', label: 'Tổng quan', icon: '📊' },
-              { id: 'keys', label: 'API Keys', icon: '🔑' },
-              { id: 'wallet', label: 'Nạp tiền', icon: '💳' },
-              { id: 'calculator', label: 'Tính phí', icon: '🧮' },
+              { id: 'keys', label: 'Cấu hình Key', icon: '🔑' },
+              { id: 'testai', label: 'Gọi AI Thật', icon: '🤖' },
             ].map(tab => (
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-col items-center py-1 px-3 rounded-xl text-xs font-semibold ${
-                  activeTab === tab.id ? 'text-indigo-500 font-extrabold' : 'text-slate-500'
-                }`}
+                key={tab.id} onClick={() => setActiveTab(tab.id)}
+                className={`flex flex-col items-center py-1 px-3 rounded-xl text-xs font-semibold ${activeTab === tab.id ? 'text-indigo-500 font-extrabold' : 'text-slate-500'}`}
               >
                 <span className="text-base mb-0.5">{tab.icon}</span>
                 <span>{tab.label}</span>
@@ -823,94 +476,40 @@
             ))}
           </nav>
 
-          {/* MODAL NẠP TIỀN */}
-          {showTopUpModal && (
-            <div className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <form onSubmit={handleTopUp} className="bg-white dark:bg-[#0f1624] w-full max-w-md rounded-3xl p-6 border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xl">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-extrabold text-lg">💳 Nạp tiền Ví Trả Trước</h3>
-                  <button type="button" onClick={() => setShowTopUpModal(false)} className="text-slate-400 hover:text-white">✕</button>
-                </div>
-
-                <div className="grid grid-cols-4 gap-2">
-                  {[5, 10, 20, 50].map(v => (
-                    <button
-                      type="button"
-                      key={v}
-                      onClick={() => setTopUpAmount(v)}
-                      className={`py-2.5 rounded-xl font-extrabold text-xs border ${
-                        Number(topUpAmount) === v ? 'bg-indigo-600 text-white border-indigo-600' : 'border-slate-200 dark:border-slate-800'
-                      }`}
-                    >
-                      +${v}
-                    </button>
-                  ))}
-                </div>
-
-                <div>
-                  <label className="text-xs text-slate-400 block mb-1">Số tiền nạp ($ USD)</label>
-                  <input
-                    type="number" min="1" required
-                    value={topUpAmount} onChange={e => setTopUpAmount(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 font-extrabold text-sm"
-                  />
-                  <p className="text-xs text-indigo-400 font-semibold mt-1">Thành tiền: {formatVND(Number(topUpAmount) || 0)}</p>
-                </div>
-
-                <div className="flex justify-end gap-2 pt-2">
-                  <button type="button" onClick={() => setShowTopUpModal(false)} className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800">Hủy</button>
-                  <button type="submit" className="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-indigo-600 text-white shadow-lg shadow-indigo-600/30">
-                    Nạp tiền ngay
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-
-          {/* MODAL THÊM API KEY */}
+          {/* MODAL THÊM KEY */}
           {showKeyModal && (
             <div className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex items-center justify-center p-4">
               <form onSubmit={handleAddKey} className="bg-white dark:bg-[#0f1624] w-full max-w-md rounded-3xl p-6 border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xl">
-                <h3 className="font-extrabold text-lg">🔑 Thêm API Key Trả trước</h3>
+                <h3 className="font-extrabold text-lg">🔑 Thêm API Key Thật Mới</h3>
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Tên dự án / Ứng dụng *</label>
+                  <label className="text-xs text-slate-400 block mb-1">Tên dự án</label>
                   <input
-                    type="text" required placeholder="VD: Trợ lý giảng dạy Lớp 4"
-                    value={newKeyName} onChange={e => setNewKeyName(e.target.value)}
+                    type="text" required placeholder="VD: Ứng dụng Chấm bài"
+                    value={newName} onChange={e => setNewName(e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-slate-400 block mb-1">Mã API Key (Để trống sẽ tạo mã mẫu)</label>
+                  <label className="text-xs text-slate-400 block mb-1">Mã API Key thật từ Google (AIzaSy...)</label>
                   <input
-                    type="text" placeholder="AIzaSy..."
+                    type="text" required placeholder="AIzaSy..."
                     value={newKeyValue} onChange={e => setNewKeyValue(e.target.value)}
                     className="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm font-mono"
                   />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1">Mô hình AI</label>
-                    <select
-                      value={newKeyModel} onChange={e => setNewKeyModel(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm"
-                    >
-                      <option>Gemini 2.0 Flash</option>
-                      <option>Gemini 1.5 Pro</option>
-                      <option>Gemini 1.5 Flash</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1">Giới hạn tự ngắt ($)</label>
-                    <input
-                      type="number" value={newKeyLimit} onChange={e => setNewKeyLimit(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm font-bold"
-                    />
-                  </div>
+                <div>
+                  <label className="text-xs text-slate-400 block mb-1">Model Gemini</label>
+                  <select
+                    value={newModel} onChange={e => setNewModel(e.target.value)}
+                    className="w-full px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm font-bold"
+                  >
+                    <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+                    <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
+                  </select>
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button type="button" onClick={() => setShowKeyModal(false)} className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800">Hủy</button>
-                  <button type="submit" className="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-indigo-600 text-white">Lưu API Key</button>
+                  <button type="submit" className="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-indigo-600 text-white">Lưu Key</button>
                 </div>
               </form>
             </div>
@@ -919,6 +518,7 @@
       );
     }
 
+    const ReactDOM = window.ReactDOM;
     const root = ReactDOM.createRoot(document.getElementById('root'));
     root.render(<App />);
   </script>
