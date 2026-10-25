@@ -1,464 +1,443 @@
 <!DOCTYPE html>
-<html lang="vi" class="dark">
+<html lang="vi">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Quản lý Hạn mức API</title>
-  
-  <meta name="theme-color" content="#090d16" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Quản lý API" />
-  
-  <link rel="apple-touch-icon" href="/icon.png">
-  <link rel="icon" type="image/png" href="/icon.png">
-
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quản lý API - QUẢN LÝ API THẬT</title>
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: { extend: { fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] } } }
-    }
-  </script>
-  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
+  <!-- Phosphor Icons -->
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
   <style>
-    body { -webkit-tap-highlight-color: transparent; font-family: 'Inter', sans-serif; }
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    body {
+      background-color: #0b0f19;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .custom-scroll::-webkit-scrollbar {
+      width: 6px;
+    }
+    .custom-scroll::-webkit-scrollbar-thumb {
+      background: #1f293d;
+      border-radius: 4px;
+    }
   </style>
 </head>
-<body class="bg-slate-100 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 antialiased selection:bg-indigo-500 selection:text-white">
-  <div id="root"></div>
+<body class="text-slate-200 min-h-screen flex antialiased select-none">
 
-  <script type="text/babel">
-    const { useState, useEffect, useMemo } = React;
-
-    const DEFAULT_PROJECTS = [
-      { id: 1, name: 'Trợ lý Bài giảng Lớp 4', keyMask: 'AIzaSyD9x8...7kL2', model: 'Gemini 2.0 Flash', spent: 14.50, limit: 30, requests: 19400, active: true },
-      { id: 2, name: 'Chấm bài & Nhận xét Tự động', keyMask: 'AIzaSyB4m1...9vN3', model: 'Gemini 1.5 Pro', spent: 18.00, limit: 40, requests: 6250, active: true },
-      { id: 3, name: 'Tạo Video Nhân vật Tiếng Việt', keyMask: 'AIzaSyK7p2...3cQ5', model: 'Gemini 1.5 Flash', spent: 5.50, limit: 20, requests: 8900, active: true },
-    ];
-
-    function App() {
-      const [darkMode, setDarkMode] = useState(true);
-      const [activeTab, setActiveTab] = useState('dashboard');
-      const [exchangeRate] = useState(25450);
-
-      // Quản lý tổng ngân sách ví trả trước
-      const [totalDeposited, setTotalDeposited] = useState(() => {
-        const saved = localStorage.getItem('qlapi_tracker_deposited');
-        return saved !== null ? Number(saved) : 100.00;
-      });
-
-      // Danh sách dự án & hạn mức
-      const [projects, setProjects] = useState(() => {
-        const saved = localStorage.getItem('qlapi_tracker_projects');
-        return saved ? JSON.parse(saved) : DEFAULT_PROJECTS;
-      });
-
-      // Modal states
-      const [showModal, setShowModal] = useState(false);
-      const [editProject, setEditProject] = useState(null);
-      const [name, setName] = useState('');
-      const [keyMask, setKeyMask] = useState('');
-      const [model, setModel] = useState('Gemini 2.0 Flash');
-      const [limit, setLimit] = useState(30);
-      const [spent, setSpent] = useState(0);
-      const [requests, setRequests] = useState(0);
-      const [toast, setToast] = useState(null);
-
-      useEffect(() => {
-        document.documentElement.classList.toggle('dark', darkMode);
-      }, [darkMode]);
-
-      useEffect(() => {
-        localStorage.setItem('qlapi_tracker_deposited', totalDeposited.toString());
-      }, [totalDeposited]);
-
-      useEffect(() => {
-        localStorage.setItem('qlapi_tracker_projects', JSON.stringify(projects));
-      }, [projects]);
-
-      const notify = (msg) => {
-        setToast(msg);
-        setTimeout(() => setToast(null), 3000);
-      };
-
-      const totalUsed = useMemo(() => projects.reduce((sum, p) => sum + Number(p.spent), 0), [projects]);
-      const remainingBalance = useMemo(() => Math.max(0, Number((totalDeposited - totalUsed).toFixed(2))), [totalDeposited, totalUsed]);
-      const totalRequests = useMemo(() => projects.reduce((sum, p) => sum + Number(p.requests), 0), [projects]);
-
-      const formatVND = (usd) => Math.round(usd * exchangeRate).toLocaleString('vi-VN') + ' ₫';
-
-      const handleSaveProject = (e) => {
-        e.preventDefault();
-        if (!name.trim()) return;
-
-        if (editProject) {
-          setProjects(projects.map(p => p.id === editProject.id ? {
-            ...p,
-            name,
-            keyMask: keyMask || p.keyMask,
-            model,
-            limit: Number(limit) || 10,
-            spent: Number(spent) || 0,
-            requests: Number(requests) || 0
-          } : p));
-          notify('Đã cập nhật thông tin dự án!');
-        } else {
-          const newProj = {
-            id: Date.now(),
-            name,
-            keyMask: keyMask || 'AIzaSy...xxxx',
-            model,
-            spent: Number(spent) || 0,
-            limit: Number(limit) || 30,
-            requests: Number(requests) || 0,
-            active: true
-          };
-          setProjects([newProj, ...projects]);
-          notify('Đã thêm dự án mới thành công!');
-        }
-        setShowModal(false);
-        setEditProject(null);
-        setName('');
-        setKeyMask('');
-        setSpent(0);
-        setRequests(0);
-      };
-
-      const openEditModal = (p) => {
-        setEditProject(p);
-        setName(p.name);
-        setKeyMask(p.keyMask);
-        setModel(p.model);
-        setLimit(p.limit);
-        setSpent(p.spent);
-        setRequests(p.requests);
-        setShowModal(true);
-      };
-
-      const toggleActive = (id) => {
-        setProjects(projects.map(p => p.id === id ? { ...p, active: !p.active } : p));
-      };
-
-      const deleteProject = (id) => {
-        setProjects(projects.filter(p => p.id !== id));
-        notify('Đã xóa dự án.');
-      };
-
-      const addQuickExpense = (id, amount) => {
-        setProjects(projects.map(p => {
-          if (p.id === id) {
-            const newSpent = Number((p.spent + amount).toFixed(2));
-            return { ...p, spent: newSpent, requests: p.requests + 250 };
-          }
-          return p;
-        }));
-        notify(`Đã cập nhật +$${amount} chi phí thực tế.`);
-      };
-
-      return (
-        <div className="min-h-screen pb-24 md:pb-8 flex flex-col md:flex-row">
-          {toast && (
-            <div className="fixed top-4 right-4 z-50 bg-indigo-600 text-white px-4 py-3 rounded-2xl shadow-2xl text-sm font-semibold">
-              {toast}
-            </div>
-          )}
-
-          {/* SIDEBAR */}
-          <aside className="hidden md:flex flex-col w-72 bg-white dark:bg-[#0f1624] border-r border-slate-200/80 dark:border-slate-800 p-6 shrink-0">
-            <div className="flex items-center gap-3.5 mb-8">
-              <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-indigo-600 to-cyan-500 flex items-center justify-center text-white font-extrabold text-xl shadow-lg shadow-indigo-500/30">
-                📊
-              </div>
-              <div>
-                <h1 className="font-extrabold text-base tracking-tight">QUẢN LÝ HẠN MỨC</h1>
-                <span className="text-[11px] text-emerald-500 font-semibold">● Sổ tay Chi phí AI Studio</span>
-              </div>
-            </div>
-
-            <div className="mb-6 p-4 rounded-2xl bg-slate-900 text-white shadow-lg space-y-2">
-              <div className="flex justify-between text-xs text-slate-400">
-                <span>Ngân sách Tổng ví</span>
-                <button onClick={() => {
-                  const val = prompt('Nhập tổng ngân sách ví ($):', totalDeposited);
-                  if (val && !isNaN(val)) setTotalDeposited(Number(val));
-                }} className="text-indigo-400 underline text-[10px]">Sửa</button>
-              </div>
-              <p className="text-2xl font-extrabold">${totalDeposited.toFixed(2)}</p>
-              <p className="text-xs text-emerald-400">Còn lại: ${remainingBalance.toFixed(2)}</p>
-            </div>
-
-            <nav className="space-y-1.5 flex-1">
-              {[
-                { id: 'dashboard', label: 'Tổng quan chi phí', icon: '📈' },
-                { id: 'projects', label: 'Quản lý Dự án & Key', icon: '🔑' },
-              ].map(item => (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                    activeTab === item.id ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  <span>{item.icon}</span>
-                  <span>{item.label}</span>
-                </button>
-              ))}
-
-              <a
-                href="https://aistudio.google.com/app/apikey"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-amber-500 hover:bg-amber-500/10 border border-amber-500/20 mt-4"
-              >
-                <span>↗</span>
-                <span>Mở Google AI Studio</span>
-              </a>
-            </nav>
-
-            <div className="mt-auto pt-4 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center">
-              <span className="text-xs text-slate-500">Giao diện</span>
-              <button onClick={() => setDarkMode(!darkMode)} className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold">
-                {darkMode ? '🌙 Tối' : '☀️ Sáng'}
-              </button>
-            </div>
-          </aside>
-
-          {/* NỘI DUNG CHÍNH */}
-          <main className="flex-1 max-w-5xl mx-auto w-full p-4 md:p-8 space-y-6">
-            <div className="flex md:hidden items-center justify-between bg-white dark:bg-[#0f1624] p-4 rounded-2xl border border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold">📊</div>
-                <div>
-                  <h1 className="font-extrabold text-base">QUẢN LÝ HẠN MỨC</h1>
-                  <p className="text-[11px] text-emerald-500">Ví: ${remainingBalance.toFixed(2)}</p>
-                </div>
-              </div>
-              <button onClick={() => setDarkMode(!darkMode)} className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs">
-                {darkMode ? '🌙' : '☀️'}
-              </button>
-            </div>
-
-            {/* TAB 1: TỔNG QUAN */}
-            {activeTab === 'dashboard' && (
-              <div className="space-y-6">
-                <div className="rounded-3xl bg-gradient-to-br from-indigo-600 to-slate-900 text-white p-6 md:p-8 shadow-xl flex flex-col md:flex-row justify-between gap-6">
-                  <div>
-                    <span className="px-3 py-1 rounded-full bg-white/15 text-xs font-semibold">💡 Sổ Tay Theo Dõi Ngân Sách AI</span>
-                    <p className="text-xs uppercase tracking-wider text-indigo-200 mt-3 font-semibold">Số dư ngân sách tổng</p>
-                    <h2 className="text-4xl md:text-5xl font-extrabold mt-1">${remainingBalance.toFixed(2)}</h2>
-                    <p className="text-xs text-indigo-200 mt-1">Tương đương: {formatVND(remainingBalance)}</p>
-                  </div>
-                  <div className="flex flex-col justify-end gap-2">
-                    <button onClick={() => {
-                      setEditProject(null);
-                      setName('');
-                      setKeyMask('AIzaSy...');
-                      setSpent(0);
-                      setLimit(30);
-                      setShowModal(true);
-                    }} className="bg-white text-indigo-700 hover:bg-indigo-50 px-5 py-3 rounded-2xl font-extrabold text-sm shadow-lg">
-                      + Thêm Dự Án / Key Mới
-                    </button>
-                    <a
-                      href="https://aistudio.google.com/app/apikey"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-4 py-2.5 rounded-xl font-extrabold text-xs text-center shadow"
-                    >
-                      ↗ Lấy Key từ Google AI Studio
-                    </a>
-                  </div>
-                </div>
-
-                {/* 3 THỐNG KÊ */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="bg-white dark:bg-[#0f1624] p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
-                    <span className="text-xs text-slate-500">Tổng Ngân Sách Nạp</span>
-                    <p className="text-2xl font-extrabold mt-1">${totalDeposited.toFixed(2)}</p>
-                  </div>
-                  <div className="bg-white dark:bg-[#0f1624] p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
-                    <span className="text-xs text-slate-500">Tổng Chi Phí Đã Dùng</span>
-                    <p className="text-2xl font-extrabold text-amber-500 mt-1">${totalUsed.toFixed(2)}</p>
-                  </div>
-                  <div className="bg-white dark:bg-[#0f1624] p-5 rounded-2xl border border-slate-200 dark:border-slate-800">
-                    <span className="text-xs text-slate-500">Tổng Lượt Requests Ước Tính</span>
-                    <p className="text-2xl font-extrabold text-indigo-500 mt-1">{totalRequests.toLocaleString()}</p>
-                  </div>
-                </div>
-
-                {/* DANH SÁCH DỰ ÁN */}
-                <div className="bg-white dark:bg-[#0f1624] p-5 md:p-6 rounded-3xl border border-slate-200 dark:border-slate-800 space-y-4">
-                  <div className="flex justify-between items-center">
-                    <h3 className="font-extrabold text-base">Hạn mức chi tiêu theo từng dự án</h3>
-                    <button onClick={() => setActiveTab('projects')} className="text-xs text-indigo-500 hover:underline font-bold">Quản lý chi tiết →</button>
-                  </div>
-
-                  <div className="space-y-3.5">
-                    {projects.map(p => {
-                      const percent = Math.min(100, Math.round((p.spent / p.limit) * 100));
-                      const isLimitReached = p.spent >= p.limit;
-                      return (
-                        <div key={p.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                          <div className="space-y-1.5 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-bold text-sm">{p.name}</span>
-                              <span className="text-[11px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-500 font-semibold">{p.model}</span>
-                              <span className={`text-[11px] px-2 py-0.5 rounded font-bold ${isLimitReached ? 'bg-rose-500/15 text-rose-500' : 'bg-emerald-500/15 text-emerald-500'}`}>
-                                {isLimitReached ? '⚠️ Chạm hạn mức' : '● Đang chạy'}
-                              </span>
-                            </div>
-                            <div className="w-full max-w-md bg-slate-200 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                              <div className={`h-full ${isLimitReached ? 'bg-rose-500' : 'bg-indigo-600'}`} style={{ width: `${percent}%` }}></div>
-                            </div>
-                            <div className="flex gap-4 text-xs text-slate-500">
-                              <span>Đã dùng: <strong className="text-slate-700 dark:text-slate-200">${p.spent.toFixed(2)}</strong> ({formatVND(p.spent)})</span>
-                              <span>Hạn mức: <strong>${p.limit}</strong></span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <button onClick={() => addQuickExpense(p.id, 2.00)} className="px-3 py-1.5 rounded-xl bg-indigo-600/10 text-indigo-500 text-xs font-bold hover:bg-indigo-600/20">
-                              + Thêm $2 cước
-                            </button>
-                            <button onClick={() => openEditModal(p)} className="px-3 py-1.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-xs font-bold">
-                              Sửa
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* TAB 2: QUẢN LÝ DỰ ÁN */}
-            {activeTab === 'projects' && (
-              <div className="space-y-5">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <h2 className="text-xl font-extrabold">Danh sách Dự án & API Keys</h2>
-                    <p className="text-xs text-slate-500">Cập nhật thủ công chi phí lấy từ Google AI Studio vào đây mỗi tuần/tháng.</p>
-                  </div>
-                  <button onClick={() => {
-                    setEditProject(null);
-                    setName('');
-                    setKeyMask('AIzaSy...');
-                    setSpent(0);
-                    setLimit(30);
-                    setShowModal(true);
-                  }} className="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-xs font-bold">
-                    + Thêm Dự Án Mới
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  {projects.map(p => (
-                    <div key={p.id} className="bg-white dark:bg-[#0f1624] p-5 rounded-3xl border border-slate-200 dark:border-slate-800 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-base">{p.name}</span>
-                          <span className="text-xs px-2.5 py-0.5 rounded bg-indigo-500/10 text-indigo-500 font-semibold">{p.model}</span>
-                        </div>
-                        <p className="text-xs font-mono text-slate-400 mt-1">Key: {p.keyMask} • Tổng dùng: <strong className="text-amber-500">${p.spent.toFixed(2)}</strong> / ${p.limit}</p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button onClick={() => openEditModal(p)} className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-bold">Chỉnh sửa</button>
-                        <button onClick={() => deleteProject(p.id)} className="px-3 py-2 rounded-xl bg-rose-500/10 text-rose-500 text-xs font-bold">Xóa</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </main>
-
-          {/* MENU MOBILE */}
-          <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-[#0f1624]/95 backdrop-blur-md border-t border-slate-200 dark:border-slate-800 flex justify-around py-2 px-1 z-40">
-            {[
-              { id: 'dashboard', label: 'Tổng quan', icon: '📈' },
-              { id: 'projects', label: 'Dự án', icon: '🔑' },
-            ].map(tab => (
-              <button
-                key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`flex flex-col items-center py-1 px-3 rounded-xl text-xs font-semibold ${activeTab === tab.id ? 'text-indigo-500 font-extrabold' : 'text-slate-500'}`}
-              >
-                <span className="text-base mb-0.5">{tab.icon}</span>
-                <span>{tab.label}</span>
-              </button>
-            ))}
-          </nav>
-
-          {/* MODAL THÊM / SỬA DỰ ÁN */}
-          {showModal && (
-            <div className="fixed inset-0 bg-black/65 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-              <form onSubmit={handleSaveProject} className="bg-white dark:bg-[#0f1624] w-full max-w-md rounded-3xl p-6 border border-slate-200 dark:border-slate-800 space-y-4 shadow-2xl">
-                <h3 className="font-extrabold text-lg">{editProject ? '✏️ Chỉnh sửa Dự án' : '➕ Thêm Dự án Mới'}</h3>
-                <div>
-                  <label className="text-xs text-slate-400 block mb-1">Tên Dự án / Mục đích *</label>
-                  <input
-                    type="text" required placeholder="VD: App chấm bài tự động"
-                    value={name} onChange={e => setName(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-slate-400 block mb-1">Gợi ý mã Key (để phân biệt)</label>
-                  <input
-                    type="text" placeholder="AIzaSy...abcd"
-                    value={keyMask} onChange={e => setKeyMask(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm font-mono"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1">Model AI</label>
-                    <select
-                      value={model} onChange={e => setModel(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm font-bold"
-                    >
-                      <option>Gemini 2.0 Flash</option>
-                      <option>Gemini 1.5 Pro</option>
-                      <option>Gemini 1.5 Flash</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs text-slate-400 block mb-1">Hạn mức tối đa ($)</label>
-                    <input
-                      type="number" value={limit} onChange={e => setLimit(e.target.value)}
-                      className="w-full px-3 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm font-bold"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label className="text-xs text-slate-400 block mb-1">Chi phí thực tế đã dùng ($) — Lấy từ Google AI Studio</label>
-                  <input
-                    type="number" step="0.01" value={spent} onChange={e => setSpent(e.target.value)}
-                    className="w-full px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 text-sm font-bold text-amber-500"
-                  />
-                </div>
-                <div className="flex justify-end gap-2 pt-2">
-                  <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2.5 rounded-xl text-xs font-bold bg-slate-100 dark:bg-slate-800">Hủy</button>
-                  <button type="submit" className="px-5 py-2.5 rounded-xl text-xs font-extrabold bg-indigo-600 text-white">Lưu thông tin</button>
-                </div>
-              </form>
-            </div>
-          )}
+  <!-- ==================== SIDEBAR TRÁI ==================== -->
+  <aside class="w-72 bg-[#0e1322] border-r border-slate-800/80 p-5 flex flex-col justify-between shrink-0">
+    <div class="space-y-6">
+      <!-- Logo App -->
+      <div class="flex items-center space-x-3">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-400 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+          <i class="ph-bold ph-lightning text-xl"></i>
         </div>
-      );
+        <div>
+          <h1 class="font-bold text-sm tracking-wide text-white uppercase">Quản Lý API Thật</h1>
+          <span class="inline-flex items-center text-[11px] text-emerald-400 font-medium">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span> Kết nối Live Google API
+          </span>
+        </div>
+      </div>
+
+      <!-- Khối Ví Nhanh Trên Sidebar -->
+      <div class="bg-[#141b2d] border border-slate-800 p-4 rounded-2xl relative overflow-hidden">
+        <div class="flex justify-between items-center mb-1">
+          <span class="text-xs text-slate-400">Số dư Ví Trả Trước</span>
+          <span class="text-[10px] bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-bold">SẴN SÀNG</span>
+        </div>
+        <div class="text-2xl font-black text-white" id="sidebar-balance">$20.00</div>
+        <div class="mt-3 flex items-center bg-[#0b0f19] rounded-xl px-3 py-1.5 border border-slate-800">
+          <input id="quick-deposit-input" type="number" placeholder="20" class="w-full bg-transparent text-xs text-white outline-none font-semibold">
+          <button onclick="depositBudget()" class="text-xs bg-indigo-600 hover:bg-indigo-500 text-white px-2 py-1 rounded-md transition font-medium">Nạp</button>
+        </div>
+      </div>
+
+      <!-- Menu Tabs -->
+      <nav class="space-y-1.5">
+        <button onclick="switchTab('dashboard')" id="tab-dash-btn" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl bg-indigo-600 text-white font-medium text-sm transition shadow-lg shadow-indigo-600/30">
+          <i class="ph-bold ph-wallet text-lg"></i>
+          <span>Tổng quan ví & Key</span>
+        </button>
+        <button onclick="openAddKeyModal()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-[#141b2d] hover:text-white font-medium text-sm transition">
+          <i class="ph-bold ph-key text-lg"></i>
+          <span>Quản lý API Keys Thật</span>
+        </button>
+        <button onclick="openTestModal()" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-slate-400 hover:bg-[#141b2d] hover:text-white font-medium text-sm transition">
+          <i class="ph-bold ph-robot text-lg"></i>
+          <span>Chạy thử AI thật (-Tiền thật)</span>
+        </button>
+      </nav>
+    </div>
+
+    <!-- AI Studio Direct Link -->
+    <a href="https://aistudio.google.com/app/apikey" target="_blank" class="flex items-center space-x-2 text-amber-400 hover:text-amber-300 text-sm font-semibold p-3 border border-amber-500/20 bg-amber-500/5 rounded-xl transition">
+      <i class="ph-bold ph-arrow-up-right text-base"></i>
+      <span>Lấy Key từ AI Studio</span>
+    </a>
+  </aside>
+
+  <!-- ==================== NỘI DUNG CHÍNH (MAIN) ==================== -->
+  <main class="flex-1 p-8 overflow-y-auto custom-scroll space-y-6">
+
+    <!-- Hero Card: Số dư chính -->
+    <div class="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#2a2b6d] via-[#1a1f4c] to-[#121633] border border-indigo-500/30 p-8 shadow-2xl">
+      <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative z-10">
+        <div>
+          <div class="inline-flex items-center gap-2 px-3 py-1 bg-white/10 rounded-full text-xs font-semibold text-blue-200 mb-3 backdrop-blur-md">
+            <i class="ph-bold ph-shield-check text-sm text-cyan-400"></i> Trạm Kiểm Soát API Trả Trước Thật
+          </div>
+          <p class="text-xs font-semibold text-indigo-200 tracking-wider uppercase">SỐ DƯ KHẢ DỤNG</p>
+          <div class="text-5xl font-black text-white mt-1 tracking-tight" id="main-balance">$20.00</div>
+          <p class="text-sm text-slate-300 mt-2 font-medium" id="main-balance-vnd">Quy đổi: 509.000 ₫</p>
+        </div>
+
+        <div class="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+          <button onclick="openTestModal()" class="flex items-center justify-center space-x-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-5 py-3.5 rounded-2xl shadow-lg shadow-emerald-500/25 transition">
+            <i class="ph-bold ph-robot text-lg"></i>
+            <span>Chạy Thử AI Thật Ngay →</span>
+          </button>
+          <button onclick="openAddKeyModal()" class="flex items-center justify-center space-x-2 bg-slate-800/80 hover:bg-slate-700 text-white font-semibold px-5 py-3.5 rounded-2xl border border-slate-700 transition">
+            <i class="ph-bold ph-plus text-base"></i>
+            <span>+ Thêm API Key Thật Mới</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hàng Thống kê (3 Thẻ) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+      <div class="bg-[#121829] border border-slate-800/80 rounded-2xl p-5">
+        <p class="text-xs font-medium text-slate-400">Tổng Ngân Sách Nạp</p>
+        <p class="text-2xl font-black text-white mt-2" id="stat-total-budget">$20.00</p>
+      </div>
+      <div class="bg-[#121829] border border-slate-800/80 rounded-2xl p-5">
+        <p class="text-xs font-medium text-slate-400">Chi Phí Đã Dùng Thật</p>
+        <p class="text-2xl font-black text-amber-400 mt-2" id="stat-total-spent">$0.0000</p>
+      </div>
+      <div class="bg-[#121829] border border-slate-800/80 rounded-2xl p-5">
+        <p class="text-xs font-medium text-slate-400">Tổng Lượt Gọi Google API</p>
+        <p class="text-2xl font-black text-blue-400 mt-2" id="stat-total-calls">0</p>
+      </div>
+    </div>
+
+    <!-- Danh Sách Keys -->
+    <div class="bg-[#121829] border border-slate-800/80 rounded-2xl p-6">
+      <div class="flex justify-between items-center mb-5">
+        <h2 class="text-base font-bold text-white tracking-wide">Danh sách API Keys Đã Đăng Ký</h2>
+        <span class="text-xs text-slate-400" id="key-count-badge">3 Keys</span>
+      </div>
+
+      <div class="space-y-3" id="keys-list-container">
+        <!-- Render danh sách Key qua JS -->
+      </div>
+    </div>
+  </main>
+
+  <!-- ==================== MODAL 1: THÊM KEY MỚI ==================== -->
+  <div id="add-key-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-[#141b2d] border border-slate-700/80 w-full max-w-md rounded-2xl p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <h3 class="font-bold text-white text-base">Thêm Google Gemini API Key Thật</h3>
+        <button onclick="closeAddKeyModal()" class="text-slate-400 hover:text-white"><i class="ph-bold ph-x text-lg"></i></button>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs font-medium text-slate-300">Tên gợi nhớ dự án</label>
+          <input id="key-name-input" type="text" placeholder="Dự án Website AI..." class="w-full mt-1.5 bg-[#0b0f19] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-indigo-500">
+        </div>
+        <div>
+          <label class="text-xs font-medium text-slate-300">Google Gemini API Key (Bắt đầu bằng AIzaSy...)</label>
+          <input id="key-value-input" type="password" placeholder="AIzaSy..." class="w-full mt-1.5 bg-[#0b0f19] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-indigo-500 font-mono">
+        </div>
+        <div>
+          <label class="text-xs font-medium text-slate-300">Mô hình mặc định</label>
+          <select id="key-model-input" class="w-full mt-1.5 bg-[#0b0f19] border border-slate-700 rounded-xl px-3 py-2 text-sm text-white outline-none">
+            <option value="gemini-2.0-flash">gemini-2.0-flash (Siêu nhanh, $0.10/1M token)</option>
+            <option value="gemini-1.5-flash">gemini-1.5-flash (Chuẩn, tiết kiệm)</option>
+            <option value="gemini-1.5-pro">gemini-1.5-pro (Mạnh nhất)</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeAddKeyModal()" class="px-4 py-2 rounded-xl text-slate-400 hover:text-white text-xs font-medium">Hủy</button>
+        <button onclick="saveNewKey()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition">Lưu Key</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL 2: CHẠY THỬ AI THẬT ==================== -->
+  <div id="test-modal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="bg-[#141b2d] border border-slate-700/80 w-full max-w-xl rounded-2xl p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3">
+        <div class="flex items-center space-x-2">
+          <i class="ph-bold ph-lightning text-amber-400 text-lg"></i>
+          <h3 class="font-bold text-white text-base">Gọi Trực Tiếp Google AI Studio (Trừ Tiền Thật)</h3>
+        </div>
+        <button onclick="closeTestModal()" class="text-slate-400 hover:text-white"><i class="ph-bold ph-x text-lg"></i></button>
+      </div>
+
+      <div class="space-y-3">
+        <div>
+          <label class="text-xs text-slate-400">Chọn API Key để gửi lệnh</label>
+          <select id="test-key-select" class="w-full mt-1 bg-[#0b0f19] border border-slate-700 rounded-xl px-3 py-2 text-xs text-white outline-none"></select>
+        </div>
+        <div>
+          <label class="text-xs text-slate-400">Nhập Prompt test</label>
+          <textarea id="test-prompt" rows="3" class="w-full mt-1 bg-[#0b0f19] border border-slate-700 rounded-xl p-3 text-sm text-white outline-none" placeholder="Hãy viết 1 câu danh ngôn ngắn về AI..."></textarea>
+        </div>
+        <button id="test-submit-btn" onclick="executeRealApiCall()" class="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-sm transition flex justify-center items-center gap-2">
+          <i class="ph-bold ph-paper-plane-tilt"></i>
+          <span>Gửi Gọi API Trực Tiếp</span>
+        </button>
+
+        <!-- Kết quả phản hồi -->
+        <div id="test-result-box" class="hidden bg-[#0b0f19] border border-slate-800 rounded-xl p-4 space-y-2">
+          <div class="flex justify-between items-center text-xs">
+            <span class="text-emerald-400 font-semibold" id="test-result-status">Thành công!</span>
+            <span class="text-amber-400 font-mono font-medium" id="test-result-cost">Trừ: $0.000004</span>
+          </div>
+          <div class="text-xs text-slate-300 max-h-36 overflow-y-auto custom-scroll font-mono whitespace-pre-wrap" id="test-result-text"></div>
+          <div class="text-[10px] text-slate-500" id="test-result-tokens">Input: 15 tokens | Output: 40 tokens</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== JAVASCRIPT LOGIC TRỰC TIẾP ==================== -->
+  <script>
+    const EXCHANGE_RATE = 25450; // Tỷ giá USD -> VND
+
+    // Trạng thái ứng dụng mặc định
+    let state = {
+      budget: 20.00,
+      spent: 0.0000,
+      calls: 0,
+      keys: [
+        { id: 1, name: "Dự án chính (Gemini Flash)", key: "AIzaSy_SAMPLE_KEY_FLASH_001", model: "gemini-2.0-flash", spent: 0.0000, active: true },
+        { id: 2, name: "Kho học liệu số", key: "AIzaSy_SAMPLE_KEY_STORAGE_002", model: "gemini-2.0-flash", spent: 0.0000, active: true },
+        { id: 3, name: "Kho học liệu số 2", key: "AIzaSy_SAMPLE_KEY_STORAGE_003", model: "gemini-2.0-flash", spent: 0.0000, active: true }
+      ]
+    };
+
+    // Khởi tạo và nạp dữ liệu từ LocalStorage
+    function init() {
+      const saved = localStorage.getItem("API_MANAGER_STATE");
+      if (saved) {
+        state = JSON.parse(saved);
+      }
+      renderUI();
     }
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
-    root.render(<App />);
+    function saveState() {
+      localStorage.setItem("API_MANAGER_STATE", JSON.stringify(state));
+      renderUI();
+    }
+
+    // Mask Key để bảo mật hiển thị (ví dụ: AQ.Ab8RN6L...)
+    function maskKey(key) {
+      if (!key || key.length < 10) return "AQ.Ab8RN6L...";
+      return key.substring(0, 3) + "." + key.substring(3, 10) + "...";
+    }
+
+    function renderUI() {
+      const balance = state.budget - state.spent;
+
+      // Cập nhật số dư & Thống kê
+      document.getElementById("main-balance").innerText = `$${balance.toFixed(2)}`;
+      document.getElementById("sidebar-balance").innerText = `$${balance.toFixed(2)}`;
+      document.getElementById("main-balance-vnd").innerText = `Quy đổi: ${Math.round(balance * EXCHANGE_RATE).toLocaleString("vi-VN")} đ`;
+
+      document.getElementById("stat-total-budget").innerText = `$${state.budget.toFixed(2)}`;
+      document.getElementById("stat-total-spent").innerText = `$${state.spent.toFixed(4)}`;
+      document.getElementById("stat-total-calls").innerText = state.calls;
+      document.getElementById("key-count-badge").innerText = `${state.keys.length} Keys`;
+
+      // Render danh sách Key
+      const container = document.getElementById("keys-list-container");
+      container.innerHTML = "";
+
+      state.keys.forEach((k) => {
+        const item = document.createElement("div");
+        item.className = "flex items-center justify-between p-4 bg-[#0e1322] border border-slate-800/80 rounded-xl hover:border-slate-700 transition";
+        item.innerHTML = `
+          <div class="space-y-1">
+            <div class="flex items-center space-x-2">
+              <span class="font-bold text-white text-sm">${k.name}</span>
+              <span class="text-[11px] bg-indigo-500/10 text-indigo-400 font-mono px-2 py-0.5 rounded-md border border-indigo-500/20">${k.model}</span>
+            </div>
+            <div class="text-xs text-slate-400 font-mono flex items-center gap-2">
+              <span>Key: ${maskKey(k.key)}</span>
+              <button onclick="deleteKey(${k.id})" class="text-rose-400 hover:text-rose-300 ml-2 text-[10px] underline">Xóa</button>
+            </div>
+          </div>
+          <div class="flex items-center space-x-6">
+            <div class="text-right">
+              <span class="text-xs text-slate-400">Đã tiêu: </span>
+              <span class="text-xs font-bold font-mono text-amber-400">$${k.spent.toFixed(4)}</span>
+            </div>
+            <button onclick="toggleKey(${k.id})" class="px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+              k.active ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+            }">
+              ${k.active ? 'Đang bật' : 'Đang tắt'}
+            </button>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    // Nạp thêm ngân sách
+    function depositBudget() {
+      const input = document.getElementById("quick-deposit-input");
+      const val = parseFloat(input.value);
+      if (!isNaN(val) && val > 0) {
+        state.budget += val;
+        input.value = "";
+        saveState();
+      }
+    }
+
+    function toggleKey(id) {
+      state.keys = state.keys.map(k => k.id === id ? { ...k, active: !k.active } : k);
+      saveState();
+    }
+
+    function deleteKey(id) {
+      if (confirm("Bạn có chắc muốn xóa Key này khỏi trạm quản lý?")) {
+        state.keys = state.keys.filter(k => k.id !== id);
+        saveState();
+      }
+    }
+
+    // Modal Add Key
+    function openAddKeyModal() { document.getElementById("add-key-modal").classList.remove("hidden"); }
+    function closeAddKeyModal() { document.getElementById("add-key-modal").classList.add("hidden"); }
+
+    function saveNewKey() {
+      const name = document.getElementById("key-name-input").value.trim();
+      const key = document.getElementById("key-value-input").value.trim();
+      const model = document.getElementById("key-model-input").value;
+
+      if (!name || !key) {
+        alert("Vui lòng điền đầy đủ tên và API Key!");
+        return;
+      }
+
+      state.keys.push({
+        id: Date.now(),
+        name,
+        key,
+        model,
+        spent: 0.0000,
+        active: true
+      });
+
+      closeAddKeyModal();
+      document.getElementById("key-name-input").value = "";
+      document.getElementById("key-value-input").value = "";
+      saveState();
+    }
+
+    // Modal Test API Thật
+    function openTestModal() {
+      const select = document.getElementById("test-key-select");
+      select.innerHTML = "";
+      const activeKeys = state.keys.filter(k => k.active);
+
+      if (activeKeys.length === 0) {
+        alert("Chưa có API Key nào được kích hoạt!");
+        return;
+      }
+
+      activeKeys.forEach(k => {
+        const opt = document.createElement("option");
+        opt.value = k.id;
+        opt.innerText = `${k.name} (${k.model})`;
+        select.appendChild(opt);
+      });
+
+      document.getElementById("test-modal").classList.remove("hidden");
+    }
+
+    function closeTestModal() {
+      document.getElementById("test-modal").classList.add("hidden");
+      document.getElementById("test-result-box").classList.add("hidden");
+    }
+
+    // GỌI API THẬT ĐẾN GOOGLE VÀ TÍNH TIỀN THEO TOKEN
+    async function executeRealApiCall() {
+      const keyId = parseInt(document.getElementById("test-key-select").value);
+      const prompt = document.getElementById("test-prompt").value.trim();
+      const targetKey = state.keys.find(k => k.id === keyId);
+
+      if (!prompt) {
+        alert("Vui lòng nhập prompt!");
+        return;
+      }
+
+      if ((state.budget - state.spent) <= 0) {
+        alert("Số dư trong ví trả trước đã hết! Vui lòng nạp thêm để tiếp tục.");
+        return;
+      }
+
+      const btn = document.getElementById("test-submit-btn");
+      const resultBox = document.getElementById("test-result-box");
+      btn.disabled = true;
+      btn.innerHTML = `<i class="ph-bold ph-spinner animate-spin"></i> Đang gọi Google AI...`;
+
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${targetKey.model}:generateContent?key=${targetKey.key}`;
+        
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }]
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          throw new Error(data.error.message || "Lỗi gọi API Google!");
+        }
+
+        // Đọc usage tokens thực tế trả về từ Google
+        const candidate = data.candidates?.[0]?.content?.parts?.[0]?.text || "Không có phản hồi text";
+        const promptTokens = data.usageMetadata?.promptTokenCount || 0;
+        const outputTokens = data.usageMetadata?.candidatesTokenCount || 0;
+
+        // Tính cước thực (Biểu giá tiêu chuẩn Gemini Flash: ~$0.10/1M input, $0.40/1M output)
+        const cost = (promptTokens * 0.0000001) + (outputTokens * 0.0000004);
+
+        // Khấu trừ số dư
+        state.spent += cost;
+        state.calls += 1;
+        targetKey.spent += cost;
+        saveState();
+
+        // Hiển thị ra UI
+        resultBox.classList.remove("hidden");
+        document.getElementById("test-result-status").innerText = "Gọi Thành Công!";
+        document.getElementById("test-result-cost").innerText = `Trừ: $${cost.toFixed(6)}`;
+        document.getElementById("test-result-text").innerText = candidate;
+        document.getElementById("test-result-tokens").innerText = `Input: ${promptTokens} tokens | Output: ${outputTokens} tokens | Model: ${targetKey.model}`;
+
+      } catch (err) {
+        resultBox.classList.remove("hidden");
+        document.getElementById("test-result-status").innerText = "Lỗi kết nối!";
+        document.getElementById("test-result-status").className = "text-rose-400 font-semibold";
+        document.getElementById("test-result-cost").innerText = "$0.00";
+        document.getElementById("test-result-text").innerText = err.message;
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = `<i class="ph-bold ph-paper-plane-tilt"></i> <span>Gửi Gọi API Trực Tiếp</span>`;
+      }
+    }
+
+    // Chạy khi khởi động trang
+    init();
   </script>
 </body>
 </html>
